@@ -1,0 +1,434 @@
+---
+title: "SIG03 oBC DirectAmp Mouse 10x Seurat Processing"
+author: "Eric Y. Wang"
+date: "`r Sys.Date()`"
+output:
+  html_notebook:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(Seurat)
+library(hdf5r)
+library(ggplot2)
+library(clustree)
+library(cowplot)
+library(scDblFinder)
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+```
+
+```{r}
+source("functions/plotting_fxns.R")
+source("functions/scRNA_seq_analysis_functions.R")
+theme_set(theme_Publication())
+```
+
+## [**Import data**]{.underline}
+
+```{r}
+dataRaw <- Read10X_h5("C:/Users/Eric/My Drive/Lab/datasets/EYW/SIG03_10x_240706/cellranger_outs/SIG03_GEX_HTO_oBC_DirectAmp_mouse/filtered_feature_bc_matrix.h5")
+names(dataRaw)
+```
+
+```{r}
+# identify joint cells between BC and GEX dataset
+jointCells <- intersect(colnames(dataRaw$`Gene Expression`),
+                        colnames(dataRaw$`Antibody Capture`))
+jointCells <- intersect(jointCells, colnames(dataRaw$`Custom`))
+
+# subset each dataset to include joint cells
+dataGEX <- dataRaw$`Gene Expression`[,jointCells]
+dataHTO <- dataRaw$`Antibody Capture`[,jointCells]
+dataBC <- dataRaw$`Custom`[,jointCells]
+
+# load GEX counts and add celltag counts into seurat object
+data <- CreateSeuratObject(counts = dataGEX, project = "SIG03_mouse")
+data[["HTO"]] <- CreateAssayObject(counts = dataHTO)
+data[["BC"]] <- CreateAssayObject(counts = dataBC)
+
+rm(dataGEX)
+rm(dataHTO)
+rm(dataBC)
+```
+
+## [**Doublet Processing**]{.underline}
+
+### HTO processing
+
+```{r}
+data <- NormalizeData(data, assay = "HTO", normalization.method = "CLR")
+data <- HTODemux(data, assay = "HTO", seed = 314)
+```
+
+```{r, fig.width=6, fig.height=5}
+# Calculate a UMAP embedding of the HTO data
+DefaultAssay(data) <- "HTO"
+data <- ScaleData(data, features = rownames(data),
+    verbose = FALSE)
+data <- RunPCA(data, features = rownames(data), approx = FALSE, verbose = F)
+data <- RunTSNE(data, dims = 1:nrow(data), verbose = F)
+```
+
+```{r, fig.width=12, fig.height=8}
+# create heatmap of HTO expression
+p1 <- HTOHeatmap(data, assay = "HTO")
+Idents(data) <- "HTO_classification.global"
+# compare UMI number for singlets, doublets, negatives
+p2 <- VlnPlot(data, features = "nCount_RNA", pt.size = 0.1, log = TRUE, alpha = 0.5)
+# plot HTO data on tSNE
+p3 <- DimPlot(data)
+
+(p3+p2)/p1
+```
+
+```{r, fig.width=12, fig.height=16}
+# vsiualize ridge plots for HTO
+Idents(data) <- "HTO_maxID"
+RidgePlot(data, assay = "HTO", features = rownames(data[["HTO"]]), ncol = 3)
+```
+
+### scDblFinder
+
+```{r}
+DefaultAssay(data) <- "RNA"
+# create logical vector of doublet or not
+doubletHTO <- data$HTO_classification.global == "Doublet"
+
+# run scDblFinder with known doublets from HTO as input
+# use GEM-X doublet rate of 0.4% per 1000 cells
+sceData <- scDblFinder(GetAssayData(data, layer="RNA", slot="counts"),knownDoublets = doubletHTO, knownUse = "discard", dbr = 0.004)
+# port the resulting scores back to the Seurat object:
+data$scDblFinder.score <- sceData$scDblFinder.score
+data$scDblFinder.class <- sceData$scDblFinder.class
+```
+
+```{r}
+table(HTO=data$HTO_classification.global, call=sceData$scDblFinder.class)
+```
+
+### Subset data to singlets based on HTO
+
+```{r}
+data@meta.data %>%
+  group_by(HTO_classification.global) %>%
+  summarize(num_cells = n())
+
+Idents(data) <- "HTO_classification.global"
+dataSub <- subset(data, idents = "Singlet")
+```
+
+```{r}
+dataSub@meta.data %>%
+  group_by(hash.ID) %>%
+  summarize(num_cells = n()) %>%
+  mutate(percent = num_cells/sum(num_cells)*100)
+```
+
+## [**Cell QC Analysis**]{.underline}
+
+### Calculate QC metrics
+
+```{r}
+DefaultAssay(dataSub) <- "RNA"
+# calculate percent mitochondrial reads and ratio 
+dataSub[["percent.mt"]] <- PercentageFeatureSet(dataSub, pattern = "^mt-")
+dataSub[["percent.ribo"]] <- PercentageFeatureSet(dataSub, pattern = "^Rpl|^Rps")
+dataSub[["mitoRatio"]] <- dataSub@meta.data$percent.mt / 100
+dataSub[["log10GenesPerUMI"]] <- log10(dataSub$nFeature_RNA)/log10(dataSub$nCount_RNA)
+dataSub[["log10nFeature_RNA"]] <- log10(dataSub$nFeature_RNA)
+dataSub[["log10nCount_RNA"]] <- log10(dataSub$nCount_RNA)
+metadata <- dataSub@meta.data
+```
+
+### Visualize QC distributions
+
+```{r, fig.width=15, fig.height=7}
+# enter QC values
+qcValues <- c(nFeature_RNA = 400, nCount_RNA = 500, percent.mt = 5)
+
+# quantify how many cells there are
+paste0("There are ", ncol(dataSub), " cells")
+
+# Visualize the number UMIs/transcripts per cell
+p2 <- metadata %>% 
+  	ggplot(aes(color=orig.ident, x=nCount_RNA, fill= orig.ident)) + 
+  	geom_density(alpha = 0.2) + 
+  	scale_x_log10() + 
+  	ylab("Cell density") +
+  	geom_vline(xintercept = qcValues[2]) +
+    NoLegend()
+
+# Visualize the distribution of genes detected per cell via histogram
+p3 <- metadata %>% 
+  	ggplot(aes(color=orig.ident, x=nFeature_RNA, fill= orig.ident)) + 
+  	geom_density(alpha = 0.2) + 
+  	scale_x_log10() + 
+  	geom_vline(xintercept = qcValues[1]) +
+    NoLegend()
+
+# Visualize the correlation between genes detected and number of UMIs and determine whether strong presence of cells with low numbers of genes/UMIs
+p4 <- metadata %>% 
+  	ggplot(aes(x=nCount_RNA, y=nFeature_RNA, color=percent.mt)) + 
+  	geom_point() + 
+  	scale_colour_gradient(low = "gray90", high = "black") +
+  	scale_x_log10() + 
+  	scale_y_log10() + 
+  	geom_vline(xintercept = qcValues[2]) +
+  	geom_hline(yintercept = qcValues[1])
+
+
+# Visualize the distribution of mitochondrial gene expression detected per cell
+p5 <- metadata %>% 
+  	ggplot(aes(color=orig.ident, x=percent.mt, fill=orig.ident)) + 
+  	geom_density(alpha = 0.2) + 
+  	geom_vline(xintercept = qcValues[3]) +
+    xlim(0,10) +
+    NoLegend()
+
+# Visualize the overall complexity of the gene expression by visualizing the genes detected per UMI
+p6 <- metadata %>%
+  	ggplot(aes(x=log10GenesPerUMI, color = orig.ident, fill=orig.ident)) +
+  	geom_density(alpha = 0.2) +
+  	geom_vline(xintercept = 0.8) +
+    NoLegend()
+
+plot_grid(p2,p3,p4,p5,p6, ncol = 3)
+```
+
+```{r, fig.height=8, fig.width=16}
+p1 <- metadata %>% 
+  ggplot(aes(color=hash.ID, x=nFeature_RNA, fill=hash.ID)) + 
+  	geom_density(alpha = 0.2) + 
+  	scale_x_log10() + 
+  	geom_vline(xintercept = qcValues[1])
+    
+p2 <- metadata %>% 
+  ggplot(aes(color=hash.ID, x=nCount_RNA, fill=hash.ID)) + 
+  	geom_density(alpha = 0.2) + 
+  	scale_x_log10() + 
+  	geom_vline(xintercept = qcValues[2])
+
+p3 <- metadata %>% 
+  ggplot(aes(color=hash.ID, x=percent.mt, fill=hash.ID)) + 
+  	geom_density(alpha = 0.2) + 
+  	geom_vline(xintercept = qcValues[3]) +
+    xlim(0,10)
+
+p4 <- metadata %>%
+  ggplot(aes(x=log10GenesPerUMI, color = hash.ID, fill=hash.ID)) +
+  	geom_density(alpha = 0.2)
+
+plot_grid(p1,p2,p3,p4, ncol = 2)
+```
+
+### Subset data based on QC metrics
+
+```{r}
+dataSubQC <- subset(dataSub, subset = (nFeature_RNA >= qcValues[1]) & (nCount_RNA >=qcValues[2]) & (percent.mt < qcValues[3]))
+
+# quantify how many cells there are
+paste0("There are ", ncol(dataSubQC), " cells after QC")
+paste0("There were ", ncol(dataSub) - ncol(dataSubQC), " cells removed in QC")
+```
+
+## [**Score for sources of variation**]{.underline}
+
+### Cell cycle variation
+
+```{r, echo=FALSE}
+DefaultAssay(dataSubQC) <- "RNA"
+dataSubQC <- NormalizeData(dataSubQC)
+# Identify the most variable genes
+dataSubQC <- FindVariableFeatures(dataSubQC, 
+                     selection.method = "vst",
+                     nfeatures = 2000, 
+                     verbose = FALSE)
+# Scale the counts
+dataSubQC <- ScaleData(dataSubQC)
+
+cellCycleGenes <- read_csv("C:/Users/Eric/My Drive/Lab/datasets/gene_sets/cell_cycle_genes_seurat_mouse.csv")
+# cellCycleGenes <- read_csv("/Users/wange7/Library/CloudStorage/GoogleDrive-ericwang314@gmail.com/My Drive/Lab/datasets/gene_sets/cell_cycle_genes_seurat_mouse.csv")
+
+dataSubQC <- CellCycleScoring(dataSubQC, s.features = cellCycleGenes$s_genes,
+                            g2m.features = cellCycleGenes$g2m_genes)
+```
+
+```{r, fig.width=8, fig.height=4}
+# Plot the PCA colored by cell cycle phase
+dataSubQC <- RunPCA(dataSubQC, verbose = FALSE)
+DimPlot(dataSubQC,
+        reduction = "pca",
+        group.by= "Phase",
+        split.by = "Phase")
+```
+
+### Mitochondrial variation
+
+```{r, fig.width = 12, fig.height=4}
+# Check quartile values
+mitoQuart <- summary(dataSubQC@meta.data$mitoRatio)
+
+# Turn mitoRatio into categorical factor vector based on quartile values
+dataSubQC@meta.data$mitoFr <- cut(dataSubQC@meta.data$mitoRatio, 
+                   breaks=c(-Inf, mitoQuart[2], mitoQuart[3], mitoQuart[5], Inf), 
+                   labels=c("Low","Medium","Medium high", "High"))
+
+DimPlot(dataSubQC,
+        reduction = "pca",
+        group.by= "mitoFr",
+        split.by = "mitoFr")
+```
+
+## [**Data normalization/scaling**]{.underline}
+
+### SCTransform
+
+```{r}
+options(future.globals.maxSize= 2000*1024^2)
+# perform SCT normalization and find variable features
+dataSubQC <- SCTransform(dataSubQC, vst.flavor = "v2",
+                       vars.to.regress = c("Phase","mitoRatio"),
+                       variable.features.n = 3100)
+
+# remove TCR genes from variable features
+featureVar <- VariableFeatures(dataSubQC, assay = "SCT")
+TCRgenes <- grep("^Tra[vj]|^Trb[vdj]",featureVar)
+featureVar[TCRgenes]
+
+VariableFeatures(dataSubQC, assay = "SCT") <- featureVar[-TCRgenes]
+
+# scale SCT variable features in RNA assay
+DefaultAssay(dataSubQC) <- "RNA"
+dataSubQC <- ScaleData(dataSubQC, features = featureVar[-TCRgenes])
+DefaultAssay(dataSubQC) <- "SCT"
+```
+
+### BC normalization
+
+```{r}
+dataSubQC <- NormalizeData(dataSubQC, assay = "BC", normalization.method = "CLR")
+```
+
+## **CRISPR calling**
+
+```{r}
+metadata <- dataSub@meta.data %>%
+  as_tibble(rownames = "cell_BC")
+
+BCdata <- dataSub@assays$BC@counts %>%
+  as_tibble(rownames = "BC") %>%
+  pivot_longer(-BC, names_to = "cell_BC", values_to = "counts") %>%
+  mutate(log10counts = log10(counts + 1)) %>%
+  left_join(metadata)
+
+BCdata %>%
+  filter(BC %in% c("p139-BC4")) %>%
+  ggplot(aes(x = log10counts)) +
+    geom_histogram() +
+    geom_vline(xintercept = log10(40+1)) +
+    facet_wrap(~HTO_maxID)
+```
+
+### Annotate BC calls
+
+Here, I will manually annotate sgRNA with UMIs above 9 and add them to the
+seurat object
+
+```{r}
+# UMI_cutoff <- 20
+# 
+# # make tibble with sgRNA calls per cell based on UMI cutoff
+# cutoffCalls <- features_counts(as.matrix(dataSub@assays$CRISPR@counts),UMI_cutoff)
+# 
+# # merge cells with multiple guides
+# cutoffCallsMerge <- cutoffCalls %>%
+#   group_by(cell_bc) %>%
+#   summarise(feature_call = paste(feature_call, collapse = "|"),
+#             num_umis = paste(as.character(num_umis),collapse = "|"),
+#             num_features = n()) %>%
+#   mutate(num_features_cat = case_when(
+#     num_features == 0 ~ "none",
+#     num_features == 1 ~ "single",
+#     num_features == 2 ~ "double",
+#     num_features > 2 ~ "multiple"
+#   ))
+# 
+# # add CRISPR calls to seurat object
+# meta <- dataSub@meta.data %>% as_tibble(rownames = "cell_bc")
+# meta <- left_join(meta, cutoffCallsMerge, by = "cell_bc") %>%
+#   replace_na(list(num_features_cat = "none",
+#                   num_features = 0,
+#                   num_umis = "0",
+#                   feature_gene = "none",
+#                   feature_call = "none"))
+# meta <- as.data.frame(meta %>% select(-cell_bc))
+# rownames(meta) <- rownames(dataSub@meta.data)
+# dataSub@meta.data <- meta
+```
+
+## **Dim Reduction SCT**
+
+```{r}
+dataSub <- RunPCA(dataSub, npcs = 60, verbose = FALSE)
+ElbowPlot(dataSub, ndims = 60) +
+  ggtitle("dataSub Elbow") +
+  scale_x_continuous(breaks = seq(0,60,3))
+```
+
+```{r}
+dimValues <- 50
+# run umap based on dimensionality from elbow plot
+dataSub <- RunUMAP(dataSub, dims = 1:dimValues, verbose = F) %>%
+  FindNeighbors(dims = 1:dimValues, verbose = FALSE) %>%
+  FindClusters(resolution = c(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8),
+               algorithm = 1, verbose = F)
+```
+
+```{r, echo=FALSE, fig.height=10, fig.width=6}
+clustree(dataSub, prefix = "SCT_snn_res.") +
+  ggtitle("dataSub Clustree")
+```
+
+```{r, fig.width=6, fig.height=5}
+dataSub$seurat_clusters <- dataSub$SCT_snn_res.0.4
+Idents(dataSub) <- dataSub$seurat_clusters
+DimPlot(dataSub)
+```
+
+```{r}
+DimPlot(dataSub, group.by = "hash.ID")
+```
+
+## **Save full seurat as rds**
+
+```{r}
+saveRDS(dataSub, "SIG03_seurat_SCT_oBC_Direct_mouse.rds")
+```
+
+## **Cluster Marker Analysis + Cleaning**
+
+```{r, fig.height=20,fig.width=10}
+# perform DEG analysis on SCT data
+dataSub <- PrepSCTFindMarkers(dataSub)
+clusMarkers <- FindAllMarkers(dataSub, only.pos = T, assay = "SCT")
+clusMarkers <- as_tibble(clusMarkers)
+
+sigMarkers <- clusMarkers %>%
+  dplyr::filter(avg_log2FC > 1 & p_val_adj < 0.05)
+write_csv(sigMarkers, "cluster_sig_markers_SCT_res0.4.csv")
+
+top20 <- sigMarkers %>%
+    group_by(cluster) %>%
+    slice_head(n = 20) %>%
+    ungroup()
+
+DoHeatmap(dataSub, features = top20$gene, assay = "RNA")
+```
+
+## Additional Visualizations
+
+```{r, fig.height=30, fig.width=10}
+DimHeatmap(dataSub, dims = 1:20, cells = 500, balanced = TRUE)
+```
