@@ -1,43 +1,38 @@
----
-title: "SIG03 Barcode Analysis"
-author: "Eric Y. Wang"
-date: "`r Sys.Date()`"
-output:
-  github_document:
-    toc: true
-    html_preview: false
-  html_notebook:
-    toc: true
-    toc_float: true
----
+SIG03 Barcode Analysis
+================
+Eric Y. Wang
+2024-08-02
 
-```{r setup, include=FALSE}
-library(tidyverse)
-library(Seurat)
-library(ggplot2)
-library(cowplot)
-library(yardstick)
-knitr::opts_chunk$set(echo = TRUE)
-```
+- [<u>Import Data</u>](#import-data)
+- [<u>Visualize Barcode
+  Distributions</u>](#visualize-barcode-distributions)
+- [<u>Barcode Specificity</u>](#barcode-specificity)
 
-```{r}
+``` r
 source("../functions/plotting_fxns.R")
 source("../functions/scRNA_seq_analysis_functions.R")
 theme_set(theme_Publication())
 ```
 
-### [Import Data]{.underline}
+    ## 
+    ## Attaching package: 'ggthemes'
 
-```{r}
+    ## The following object is masked from 'package:cowplot':
+    ## 
+    ##     theme_map
+
+### <u>Import Data</u>
+
+``` r
 dataCD4 <- readRDS("/Users/wange7/Library/CloudStorage/GoogleDrive-ericwang314@gmail.com/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_CD4.rds")
 dataSplen <- readRDS("/Users/wange7/Library/CloudStorage/GoogleDrive-ericwang314@gmail.com/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_splenocytes.rds")
 ```
 
-### [Visualize Barcode Distributions]{.underline}
+### <u>Visualize Barcode Distributions</u>
 
 #### CD4 Barcodes
 
-```{r, fig.height=7, fig.width=12}
+``` r
 metadata <- dataCD4@meta.data %>%
   as_tibble(rownames = "cell_BC") %>%
   mutate(hash.ID = factor(hash.ID, c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9","CD4-6h-0",
@@ -49,7 +44,11 @@ BCdata <- dataCD4@assays$BC@counts %>%
   pivot_longer(-BC, names_to = "cell_BC", values_to = "counts") %>%
   mutate(log10counts = log10(counts + 1)) %>%
   left_join(metadata)
+```
 
+    ## Joining with `by = join_by(cell_BC)`
+
+``` r
 BCdata %>%
   filter(BC %in% c("p139-BC4")) %>%
   ggplot(aes(x = log10counts, fill = hash.ID)) +
@@ -58,7 +57,11 @@ BCdata %>%
     facet_wrap(~hash.ID, ncol = 5) +
     NoLegend() +
     ggtitle("p139-BC4")
+```
 
+![](barcode_analysis_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
+
+``` r
 BCdata %>%
   filter(BC %in% c("p139-BC5")) %>%
   ggplot(aes(x = log10counts, fill = hash.ID)) +
@@ -67,7 +70,11 @@ BCdata %>%
     facet_wrap(~hash.ID, ncol = 5) +
     NoLegend() +
     ggtitle("p139-BC5")
+```
 
+![](barcode_analysis_files/figure-gfm/unnamed-chunk-3-2.png)<!-- -->
+
+``` r
 BCdata %>%
   filter(BC %in% c("p139-BC6")) %>%
   ggplot(aes(x = log10counts, fill = hash.ID)) +
@@ -78,13 +85,17 @@ BCdata %>%
     ggtitle("p139-BC6")
 ```
 
-```{r, fig.height=5, fig.width=15}
+![](barcode_analysis_files/figure-gfm/unnamed-chunk-3-3.png)<!-- -->
+
+``` r
 VlnPlot(dataCD4, c("p139-BC4","p139-BC5","p139-BC6"), group.by = "hash.ID", pt.size = 0, assay = "BC")
 ```
 
+![](barcode_analysis_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+
 #### Splenocyte Barcodes
 
-```{r, fig.height=7, fig.width=8}
+``` r
 metadata <- dataSplen@meta.data %>%
   as_tibble(rownames = "cell_BC")
 
@@ -93,7 +104,11 @@ BCdata <- dataSplen@assays$BC@counts %>%
   pivot_longer(-BC, names_to = "cell_BC", values_to = "counts") %>%
   mutate(log10counts = log10(counts + 1)) %>%
   left_join(metadata)
+```
 
+    ## Joining with `by = join_by(cell_BC)`
+
+``` r
 BCdata %>%
   filter(BC %in% c("p139-BC6")) %>%
   ggplot(aes(x = log10counts, fill = clusters_anno)) +
@@ -104,14 +119,23 @@ BCdata %>%
     ggtitle("p139-BC6")
 ```
 
-```{r, fig.height=5, fig.width=5}
+![](barcode_analysis_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+
+``` r
 VlnPlot(dataSplen, "p139-BC6", pt.size = 0, assay = "BC")
+```
+
+![](barcode_analysis_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+
+``` r
 VlnPlot(subset(dataSplen, !(subset = clusters_anno %in% c("6_8","10"))), "p139-BC6", pt.size = 0, assay = "BC")
 ```
 
-### [Barcode Specificity]{.underline}
+![](barcode_analysis_files/figure-gfm/unnamed-chunk-6-2.png)<!-- -->
 
-```{r}
+### <u>Barcode Specificity</u>
+
+``` r
 data6hCD4 <- subset(dataCD4, subset = hash.ID %in% c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9","CD4-6h-0"))
 data22hCD4 <- subset(dataCD4, subset = hash.ID %in% c("CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9","CD4-22h-0"))
 ```
@@ -119,7 +143,8 @@ data22hCD4 <- subset(dataCD4, subset = hash.ID %in% c("CD4-22h-2e11","CD4-22h-6e
 #### Barcode 4 Recall
 
 Create test datasets for 6h
-```{r}
+
+``` r
 testDataList <- vector(mode = "list")
 
 testDataList[["CD4-6h-2e11"]] <- tibble(hash.ID = dataCD4$hash.ID,
@@ -151,8 +176,7 @@ testDataList[["CD4-6h-6e9"]] <- tibble(hash.ID = dataCD4$hash.ID,
   mutate(label = factor(label, c("positive","negative")))
 ```
 
-
-```{r}
+``` r
 # Function to classify cells based on UMI count cutoff
 classify_cells <- function(data, umi_cutoff) {
   data %>%
@@ -199,7 +223,8 @@ p1 <- results %>%
 ```
 
 Create test datasets for 22h
-```{r}
+
+``` r
 testDataList <- vector(mode = "list")
 
 testDataList[["CD4-22h-2e11"]] <- tibble(hash.ID = dataCD4$hash.ID,
@@ -231,7 +256,7 @@ testDataList[["CD4-22h-6e9"]] <- tibble(hash.ID = dataCD4$hash.ID,
   mutate(label = factor(label, c("positive","negative")))
 ```
 
-```{r}
+``` r
 # Function to classify cells based on UMI count cutoff
 classify_cells <- function(data, umi_cutoff) {
   data %>%
@@ -280,7 +305,8 @@ p2 <- results %>%
 #### Barcode 5 Recall
 
 Create test datasets for 6h
-```{r}
+
+``` r
 testDataList <- vector(mode = "list")
 
 testDataList[["CD4-6h-2e11"]] <- tibble(hash.ID = dataCD4$hash.ID,
@@ -312,8 +338,7 @@ testDataList[["CD4-6h-6e9"]] <- tibble(hash.ID = dataCD4$hash.ID,
   mutate(label = factor(label, c("positive","negative")))
 ```
 
-
-```{r}
+``` r
 # Function to classify cells based on UMI count cutoff
 classify_cells <- function(data, umi_cutoff) {
   data %>%
@@ -360,7 +385,8 @@ p3 <- results %>%
 ```
 
 Create test datasets for 22h
-```{r}
+
+``` r
 testDataList <- vector(mode = "list")
 
 testDataList[["CD4-22h-2e11"]] <- tibble(hash.ID = dataCD4$hash.ID,
@@ -392,7 +418,7 @@ testDataList[["CD4-22h-6e9"]] <- tibble(hash.ID = dataCD4$hash.ID,
   mutate(label = factor(label, c("positive","negative")))
 ```
 
-```{r}
+``` r
 # Function to classify cells based on UMI count cutoff
 classify_cells <- function(data, umi_cutoff) {
   data %>%
@@ -438,20 +464,53 @@ p4 <- results %>%
     ylim(0.5,1)
 ```
 
-#### Visualize 
+#### Visualize
 
-```{r, fig.height=12, fig.width=12}
+``` r
 plot_grid(p1,p2,p3,p4)
 ```
 
-```{r}
+    ## Warning: Removed 24 rows containing missing values or values outside the scale range
+    ## (`geom_line()`).
+
+    ## Warning: Removed 1363 rows containing missing values or values outside the scale range
+    ## (`geom_line()`).
+
+    ## Warning: Removed 23 rows containing missing values or values outside the scale range
+    ## (`geom_line()`).
+
+    ## Warning: Removed 1303 rows containing missing values or values outside the scale range
+    ## (`geom_line()`).
+
+![](barcode_analysis_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+
+``` r
 dataCD4@meta.data %>%
   group_by(hash.ID) %>%
   summarise(count = n())
 ```
-Its weird that there's such a steep drop-off in the 22h group. Not sure if it is an artifact because the cells were not very healthy and I had very few cells when I was submitting (see benchling notes). You can also tell from the QC metrics (below).
 
-```{r, fig.height=7, fig.width=12}
+    ## # A tibble: 11 × 2
+    ##    hash.ID      count
+    ##    <fct>        <int>
+    ##  1 Treg-4h       1154
+    ##  2 CD4-22h-2e11  4832
+    ##  3 CD4-6h-2e11   2411
+    ##  4 CD4-6h-0      1905
+    ##  5 CD4-6h-6e10   1521
+    ##  6 CD4-6h-6e9     873
+    ##  7 CD4-22h-6e10  1928
+    ##  8 CD4-22h-2e10   320
+    ##  9 CD4-22h-6e9    213
+    ## 10 CD4-22h-0      535
+    ## 11 CD4-6h-2e10    755
+
+Its weird that there’s such a steep drop-off in the 22h group. Not sure
+if it is an artifact because the cells were not very healthy and I had
+very few cells when I was submitting (see benchling notes). You can also
+tell from the QC metrics (below).
+
+``` r
 dataCD4@meta.data  %>%
   mutate(hash.ID = factor(hash.ID, c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9","CD4-6h-0",
                                      "CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9","CD4-22h-0",
@@ -462,15 +521,4 @@ dataCD4@meta.data  %>%
     facet_wrap(~hash.ID, ncol = 5)
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
+![](barcode_analysis_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
