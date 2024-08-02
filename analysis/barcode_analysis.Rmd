@@ -1,0 +1,46 @@
+---
+title: "SIG03 Barcode Analysis"
+author: "Eric Y. Wang"
+date: "`r Sys.Date()`"
+output:
+  html_notebook:
+    toc: true
+    toc_float: true
+  github_document:
+    toc: true
+    html_preview: false
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(Seurat)
+library(ggplot2)
+library(cowplot)
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+```
+
+```{r}
+source("functions/plotting_fxns.R")
+source("functions/scRNA_seq_analysis_functions.R")
+theme_set(theme_Publication())
+```
+
+### Import Data
+
+```{r}
+metadata <- dataCD4Sub@meta.data %>%
+  as_tibble(rownames = "cell_BC")
+
+BCdata <- dataCD4Sub@assays$BC@counts %>%
+  as_tibble(rownames = "BC") %>%
+  pivot_longer(-BC, names_to = "cell_BC", values_to = "counts") %>%
+  mutate(log10counts = log10(counts + 1)) %>%
+  left_join(metadata)
+
+BCdata %>%
+  filter(BC %in% c("p139-BC5")) %>%
+  ggplot(aes(x = log10counts, fill = hash.ID)) +
+    geom_histogram() +
+    geom_vline(xintercept = log10(100+1)) +
+    facet_wrap(~hash.ID)
+```
