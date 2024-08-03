@@ -1,0 +1,474 @@
+---
+title: "SIG03 oBC Direct Amp Barcode Analysis"
+author: "Eric Y. Wang"
+date: "`r Sys.Date()`"
+output:
+  github_document:
+    toc: true
+    html_preview: false
+  html_notebook:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(Seurat)
+library(ggplot2)
+library(cowplot)
+library(yardstick)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+source("functions/plotting_fxns.R")
+source("functions/scRNA_seq_analysis_functions.R")
+theme_set(theme_Publication())
+```
+
+### [Import Data]{.underline}
+
+```{r}
+# dataCD4 <- readRDS("/Users/wange7/Library/CloudStorage/GoogleDrive-ericwang314@gmail.com/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_CD4.rds")
+# dataSplen <- readRDS("/Users/wange7/Library/CloudStorage/GoogleDrive-ericwang314@gmail.com/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_splenocytes.rds")
+
+dataCD4 <- readRDS("C:/Users/Eric/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_CD4.rds")
+dataSplen <- readRDS("C:/Users/Eric/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_splenocytes.rds")
+```
+
+### [Visualize Barcode Distributions]{.underline}
+
+#### CD4 Barcodes
+
+```{r, fig.height=7, fig.width=12}
+metadata <- dataCD4@meta.data %>%
+  as_tibble(rownames = "cell_BC") %>%
+  mutate(hash.ID = factor(hash.ID, c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9","CD4-6h-0",
+                                     "CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9","CD4-22h-0",
+                                     "Treg-4h")))
+
+BCdata <- dataCD4@assays$BC@counts %>%
+  as_tibble(rownames = "BC") %>%
+  pivot_longer(-BC, names_to = "cell_BC", values_to = "counts") %>%
+  mutate(log10counts = log10(counts + 1)) %>%
+  left_join(metadata)
+
+BCdata %>%
+  filter(BC %in% c("p139-BC4")) %>%
+    filter(hash.ID != "Treg-4h") %>%
+  ggplot(aes(x = log10counts, fill = hash.ID)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 60) +
+    geom_vline(xintercept = log10(30+1)) +
+    facet_wrap(~hash.ID, ncol = 5) +
+    NoLegend() +
+    ggtitle("p139-BC4")
+
+BCdata %>%
+  filter(BC %in% c("p139-BC5")) %>%
+    filter(hash.ID != "Treg-4h") %>%
+  ggplot(aes(x = log10counts, fill = hash.ID)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 60) +
+    geom_vline(xintercept = log10(30+1)) +
+    facet_wrap(~hash.ID, ncol = 5) +
+    NoLegend() +
+    ggtitle("p139-BC5")
+
+BCdata %>%
+  filter(BC %in% c("p139-BC6")) %>%
+  ggplot(aes(x = log10counts, fill = hash.ID)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 60) +
+    geom_vline(xintercept = log10(100+1)) +
+    facet_wrap(~hash.ID, ncol = 5) +
+    NoLegend() +
+    ggtitle("p139-BC6")
+```
+
+```{r, fig.height=5, fig.width=15}
+VlnPlot(dataCD4, c("p139-BC4","p139-BC5","p139-BC6"), group.by = "hash.ID", pt.size = 0, assay = "BC")
+```
+
+#### Splenocyte Barcodes
+
+```{r, fig.height=7, fig.width=8}
+metadata <- dataSplen@meta.data %>%
+  as_tibble(rownames = "cell_BC")
+
+BCdata <- dataSplen@assays$BC@counts %>%
+  as_tibble(rownames = "BC") %>%
+  pivot_longer(-BC, names_to = "cell_BC", values_to = "counts") %>%
+  mutate(log10counts = log10(counts + 1)) %>%
+  left_join(metadata)
+
+BCdata %>%
+  filter(BC %in% c("p139-BC6")) %>%
+  ggplot(aes(x = log10counts, fill = clusters_anno)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 60) +
+    geom_vline(xintercept = log10(20+1)) +
+    facet_wrap(~clusters_anno) +
+    NoLegend() +
+    ggtitle("p139-BC6")
+```
+
+```{r, fig.height=5, fig.width=5}
+VlnPlot(dataSplen, "p139-BC6", pt.size = 0, assay = "BC")
+VlnPlot(subset(dataSplen, !(subset = clusters_anno %in% c("6_8","10"))), "p139-BC6", pt.size = 0, assay = "BC")
+```
+
+### [Barcode Specificity]{.underline}
+
+```{r}
+data6hCD4 <- subset(dataCD4, subset = hash.ID %in% c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9","CD4-6h-0"))
+data22hCD4 <- subset(dataCD4, subset = hash.ID %in% c("CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9","CD4-22h-0"))
+```
+
+#### Barcode 4 Recall
+
+Create test datasets for 6h
+
+```{r}
+testDataList <- vector(mode = "list")
+
+testDataList[["CD4-6h-2e11"]] <- tibble(hash.ID = dataCD4$hash.ID,
+                   umi_counts = dataCD4@assays$BC@counts["p139-BC4",]) %>%
+  filter(hash.ID %in% c("CD4-6h-2e11","CD4-6h-0")) %>%
+  mutate(label = case_when(hash.ID == "CD4-6h-0" ~ "negative",
+                           hash.ID %in% c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9") ~ "positive")) %>%
+  mutate(label = factor(label, c("positive","negative")))
+
+testDataList[["CD4-6h-6e10"]] <- tibble(hash.ID = dataCD4$hash.ID,
+                   umi_counts = dataCD4@assays$BC@counts["p139-BC4",]) %>%
+  filter(hash.ID %in% c("CD4-6h-6e10","CD4-6h-0")) %>%
+  mutate(label = case_when(hash.ID == "CD4-6h-0" ~ "negative",
+                           hash.ID %in% c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9") ~ "positive")) %>%
+  mutate(label = factor(label, c("positive","negative")))
+
+testDataList[["CD4-6h-2e10"]] <- tibble(hash.ID = dataCD4$hash.ID,
+                   umi_counts = dataCD4@assays$BC@counts["p139-BC4",]) %>%
+  filter(hash.ID %in% c("CD4-6h-2e10","CD4-6h-0")) %>%
+  mutate(label = case_when(hash.ID == "CD4-6h-0" ~ "negative",
+                           hash.ID %in% c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9") ~ "positive")) %>%
+  mutate(label = factor(label, c("positive","negative")))
+
+testDataList[["CD4-6h-6e9"]] <- tibble(hash.ID = dataCD4$hash.ID,
+                   umi_counts = dataCD4@assays$BC@counts["p139-BC4",]) %>%
+  filter(hash.ID %in% c("CD4-6h-6e9","CD4-6h-0")) %>%
+  mutate(label = case_when(hash.ID == "CD4-6h-0" ~ "negative",
+                           hash.ID %in% c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9") ~ "positive")) %>%
+  mutate(label = factor(label, c("positive","negative")))
+```
+
+```{r}
+# Function to classify cells based on UMI count cutoff
+classify_cells <- function(data, umi_cutoff) {
+  data %>%
+    mutate(predicted_label = ifelse(umi_counts >= umi_cutoff, "positive", "negative")) %>%
+    mutate(predicted_label = factor(predicted_label, c("positive","negative")))
+}
+
+# range of UMI cutoffs to test
+umi_cutoffs <- seq(0,500, by = 1)
+
+results <- tibble()
+for(i in 1:length(testDataList)){
+  temp <- map_df(umi_cutoffs, function(cutoff) {
+  classified_data <- classify_cells(testDataList[[i]], cutoff)
+  
+  metrics <- classified_data %>%
+    precision(truth = label, estimate = predicted_label) %>%
+    bind_rows(
+      classified_data %>%
+      recall(truth = label, estimate = predicted_label)
+    )
+  
+  metrics %>%
+    mutate(umi_cutoff = cutoff)
+  })
+  # add category label to results
+  temp <- mutate(temp, group = names(testDataList)[i])
+  results <- bind_rows(results,temp)
+}
+write_csv(results, "analysis_outs/umi_cutoff_oBCDirect_pr_BC4_6h.csv")
+
+# plot PR curve
+p1 <- results %>%
+  filter(.metric %in% c("precision", "recall")) %>%
+  pivot_wider(names_from = .metric, values_from = .estimate) %>%
+  mutate(group = factor(group, c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9"))) %>%
+  ggplot(aes(x = recall, y = precision, color = group)) +
+    geom_line() +
+    scale_color_brewer(palette = "Dark2") +
+    labs(title = "PR Curve 6h BC4", x = "Recall", y = "Precision") +
+    theme(aspect.ratio = 1) +
+    xlim(0.5,1) +
+    ylim(0.5,1)
+```
+
+Create test datasets for 22h
+
+```{r}
+testDataList <- vector(mode = "list")
+
+testDataList[["CD4-22h-2e11"]] <- tibble(hash.ID = dataCD4$hash.ID,
+                   umi_counts = dataCD4@assays$BC@counts["p139-BC4",]) %>%
+  filter(hash.ID %in% c("CD4-22h-2e11","CD4-22h-0")) %>%
+  mutate(label = case_when(hash.ID == "CD4-22h-0" ~ "negative",
+                           hash.ID %in% c("CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9") ~ "positive")) %>%
+  mutate(label = factor(label, c("positive","negative")))
+
+testDataList[["CD4-22h-6e10"]] <- tibble(hash.ID = dataCD4$hash.ID,
+                   umi_counts = dataCD4@assays$BC@counts["p139-BC4",]) %>%
+  filter(hash.ID %in% c("CD4-22h-6e10","CD4-22h-0")) %>%
+  mutate(label = case_when(hash.ID == "CD4-22h-0" ~ "negative",
+                           hash.ID %in% c("CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9") ~ "positive")) %>%
+  mutate(label = factor(label, c("positive","negative")))
+
+testDataList[["CD4-22h-2e10"]] <- tibble(hash.ID = dataCD4$hash.ID,
+                   umi_counts = dataCD4@assays$BC@counts["p139-BC4",]) %>%
+  filter(hash.ID %in% c("CD4-22h-2e10","CD4-22h-0")) %>%
+  mutate(label = case_when(hash.ID == "CD4-22h-0" ~ "negative",
+                           hash.ID %in% c("CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9") ~ "positive")) %>%
+  mutate(label = factor(label, c("positive","negative")))
+
+testDataList[["CD4-22h-6e9"]] <- tibble(hash.ID = dataCD4$hash.ID,
+                   umi_counts = dataCD4@assays$BC@counts["p139-BC4",]) %>%
+  filter(hash.ID %in% c("CD4-22h-6e9","CD4-22h-0")) %>%
+  mutate(label = case_when(hash.ID == "CD4-22h-0" ~ "negative",
+                           hash.ID %in% c("CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9") ~ "positive")) %>%
+  mutate(label = factor(label, c("positive","negative")))
+```
+
+```{r}
+# Function to classify cells based on UMI count cutoff
+classify_cells <- function(data, umi_cutoff) {
+  data %>%
+    mutate(predicted_label = ifelse(umi_counts >= umi_cutoff, "positive", "negative")) %>%
+    mutate(predicted_label = factor(predicted_label, c("positive","negative")))
+}
+
+# range of UMI cutoffs to test
+umi_cutoffs <- seq(0,500, by = 1)
+
+results <- tibble()
+for(i in 1:length(testDataList)){
+  temp <- map_df(umi_cutoffs, function(cutoff) {
+  classified_data <- classify_cells(testDataList[[i]], cutoff)
+  
+  metrics <- classified_data %>%
+    precision(truth = label, estimate = predicted_label) %>%
+    bind_rows(
+      classified_data %>%
+      recall(truth = label, estimate = predicted_label)
+    )
+  
+  metrics %>%
+    mutate(umi_cutoff = cutoff)
+  })
+  # add category label to results
+  temp <- mutate(temp, group = names(testDataList)[i])
+  results <- bind_rows(results,temp)
+}
+write_csv(results, "analysis_outs/umi_cutoff_oBCDirect_pr_BC4_22h.csv")
+
+# plot PR curve
+p2 <- results %>%
+  filter(.metric %in% c("precision", "recall")) %>%
+  pivot_wider(names_from = .metric, values_from = .estimate) %>%
+  mutate(group = factor(group, c("CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9"))) %>%
+  ggplot(aes(x = recall, y = precision, color = group)) +
+    geom_line() +
+    scale_color_brewer(palette = "Dark2") +
+    labs(title = "PR Curve 22h BC4", x = "Recall", y = "Precision") +
+    theme(aspect.ratio = 1) +
+    xlim(0.5,1) +
+    ylim(0.5,1)
+```
+
+#### Barcode 5 Recall
+
+Create test datasets for 6h
+
+```{r}
+testDataList <- vector(mode = "list")
+
+testDataList[["CD4-6h-2e11"]] <- tibble(hash.ID = dataCD4$hash.ID,
+                   umi_counts = dataCD4@assays$BC@counts["p139-BC5",]) %>%
+  filter(hash.ID %in% c("CD4-6h-2e11","CD4-6h-0")) %>%
+  mutate(label = case_when(hash.ID == "CD4-6h-0" ~ "negative",
+                           hash.ID %in% c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9") ~ "positive")) %>%
+  mutate(label = factor(label, c("positive","negative")))
+
+testDataList[["CD4-6h-6e10"]] <- tibble(hash.ID = dataCD4$hash.ID,
+                   umi_counts = dataCD4@assays$BC@counts["p139-BC5",]) %>%
+  filter(hash.ID %in% c("CD4-6h-6e10","CD4-6h-0")) %>%
+  mutate(label = case_when(hash.ID == "CD4-6h-0" ~ "negative",
+                           hash.ID %in% c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9") ~ "positive")) %>%
+  mutate(label = factor(label, c("positive","negative")))
+
+testDataList[["CD4-6h-2e10"]] <- tibble(hash.ID = dataCD4$hash.ID,
+                   umi_counts = dataCD4@assays$BC@counts["p139-BC5",]) %>%
+  filter(hash.ID %in% c("CD4-6h-2e10","CD4-6h-0")) %>%
+  mutate(label = case_when(hash.ID == "CD4-6h-0" ~ "negative",
+                           hash.ID %in% c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9") ~ "positive")) %>%
+  mutate(label = factor(label, c("positive","negative")))
+
+testDataList[["CD4-6h-6e9"]] <- tibble(hash.ID = dataCD4$hash.ID,
+                   umi_counts = dataCD4@assays$BC@counts["p139-BC5",]) %>%
+  filter(hash.ID %in% c("CD4-6h-6e9","CD4-6h-0")) %>%
+  mutate(label = case_when(hash.ID == "CD4-6h-0" ~ "negative",
+                           hash.ID %in% c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9") ~ "positive")) %>%
+  mutate(label = factor(label, c("positive","negative")))
+```
+
+```{r}
+# Function to classify cells based on UMI count cutoff
+classify_cells <- function(data, umi_cutoff) {
+  data %>%
+    mutate(predicted_label = ifelse(umi_counts >= umi_cutoff, "positive", "negative")) %>%
+    mutate(predicted_label = factor(predicted_label, c("positive","negative")))
+}
+
+# range of UMI cutoffs to test
+umi_cutoffs <- seq(0,500, by = 1)
+
+results <- tibble()
+for(i in 1:length(testDataList)){
+  temp <- map_df(umi_cutoffs, function(cutoff) {
+  classified_data <- classify_cells(testDataList[[i]], cutoff)
+  
+  metrics <- classified_data %>%
+    precision(truth = label, estimate = predicted_label) %>%
+    bind_rows(
+      classified_data %>%
+      recall(truth = label, estimate = predicted_label)
+    )
+  
+  metrics %>%
+    mutate(umi_cutoff = cutoff)
+  })
+  # add category label to results
+  temp <- mutate(temp, group = names(testDataList)[i])
+  results <- bind_rows(results,temp)
+}
+write_csv(results, "analysis_outs/umi_cutoff_oBCDirect_pr_BC5_6h.csv")
+
+# plot PR curve
+p3 <- results %>%
+  filter(.metric %in% c("precision", "recall")) %>%
+  pivot_wider(names_from = .metric, values_from = .estimate) %>%
+  mutate(group = factor(group, c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9"))) %>%
+  ggplot(aes(x = recall, y = precision, color = group)) +
+    geom_line() +
+    scale_color_brewer(palette = "Dark2") +
+    labs(title = "PR Curve 6h BC5", x = "Recall", y = "Precision") +
+    theme(aspect.ratio = 1) +
+    xlim(0.5,1) +
+    ylim(0.5,1)
+```
+
+Create test datasets for 22h
+
+```{r}
+testDataList <- vector(mode = "list")
+
+testDataList[["CD4-22h-2e11"]] <- tibble(hash.ID = dataCD4$hash.ID,
+                   umi_counts = dataCD4@assays$BC@counts["p139-BC5",]) %>%
+  filter(hash.ID %in% c("CD4-22h-2e11","CD4-22h-0")) %>%
+  mutate(label = case_when(hash.ID == "CD4-22h-0" ~ "negative",
+                           hash.ID %in% c("CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9") ~ "positive")) %>%
+  mutate(label = factor(label, c("positive","negative")))
+
+testDataList[["CD4-22h-6e10"]] <- tibble(hash.ID = dataCD4$hash.ID,
+                   umi_counts = dataCD4@assays$BC@counts["p139-BC5",]) %>%
+  filter(hash.ID %in% c("CD4-22h-6e10","CD4-22h-0")) %>%
+  mutate(label = case_when(hash.ID == "CD4-22h-0" ~ "negative",
+                           hash.ID %in% c("CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9") ~ "positive")) %>%
+  mutate(label = factor(label, c("positive","negative")))
+
+testDataList[["CD4-22h-2e10"]] <- tibble(hash.ID = dataCD4$hash.ID,
+                   umi_counts = dataCD4@assays$BC@counts["p139-BC5",]) %>%
+  filter(hash.ID %in% c("CD4-22h-2e10","CD4-22h-0")) %>%
+  mutate(label = case_when(hash.ID == "CD4-22h-0" ~ "negative",
+                           hash.ID %in% c("CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9") ~ "positive")) %>%
+  mutate(label = factor(label, c("positive","negative")))
+
+testDataList[["CD4-22h-6e9"]] <- tibble(hash.ID = dataCD4$hash.ID,
+                   umi_counts = dataCD4@assays$BC@counts["p139-BC5",]) %>%
+  filter(hash.ID %in% c("CD4-22h-6e9","CD4-22h-0")) %>%
+  mutate(label = case_when(hash.ID == "CD4-22h-0" ~ "negative",
+                           hash.ID %in% c("CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9") ~ "positive")) %>%
+  mutate(label = factor(label, c("positive","negative")))
+```
+
+```{r}
+# Function to classify cells based on UMI count cutoff
+classify_cells <- function(data, umi_cutoff) {
+  data %>%
+    mutate(predicted_label = ifelse(umi_counts >= umi_cutoff, "positive", "negative")) %>%
+    mutate(predicted_label = factor(predicted_label, c("positive","negative")))
+}
+
+# range of UMI cutoffs to test
+umi_cutoffs <- seq(0,500, by = 1)
+
+results <- tibble()
+for(i in 1:length(testDataList)){
+  temp <- map_df(umi_cutoffs, function(cutoff) {
+  classified_data <- classify_cells(testDataList[[i]], cutoff)
+  
+  metrics <- classified_data %>%
+    precision(truth = label, estimate = predicted_label) %>%
+    bind_rows(
+      classified_data %>%
+      recall(truth = label, estimate = predicted_label)
+    )
+  
+  metrics %>%
+    mutate(umi_cutoff = cutoff)
+  })
+  # add category label to results
+  temp <- mutate(temp, group = names(testDataList)[i])
+  results <- bind_rows(results,temp)
+}
+write_csv(results, "analysis_outs/umi_cutoff_oBCDirect_pr_BC5_22h.csv")
+
+# plot PR curve
+p4 <- results %>%
+  filter(.metric %in% c("precision", "recall")) %>%
+  pivot_wider(names_from = .metric, values_from = .estimate) %>%
+  mutate(group = factor(group, c("CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9"))) %>%
+  ggplot(aes(x = recall, y = precision, color = group)) +
+    geom_line() +
+    scale_color_brewer(palette = "Dark2") +
+    labs(title = "PR Curve 22h BC5", x = "Recall", y = "Precision") +
+    theme(aspect.ratio = 1) +
+    xlim(0.5,1) +
+    ylim(0.5,1)
+```
+
+#### Visualize
+
+```{r, fig.height=12, fig.width=12}
+plot_grid(p1,p2,p3,p4)
+```
+
+```{r}
+dataCD4@meta.data %>%
+  group_by(hash.ID) %>%
+  summarise(count = n())
+```
+
+Its weird that there's such a steep drop-off in the 22h group. Not sure if it is
+an artifact because the cells were not very healthy and I had very few cells
+when I was submitting (see benchling notes). You can also tell from the QC
+metrics (below).
+
+```{r, fig.height=7, fig.width=12}
+dataCD4@meta.data  %>%
+  mutate(hash.ID = factor(hash.ID, c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9","CD4-6h-0",
+                                     "CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9","CD4-22h-0",
+                                     "Treg-4h"))) %>%
+  ggplot(aes(color=hash.ID, x=nCount_RNA, fill=hash.ID)) + 
+    geom_density() + 
+    scale_x_log10() +
+    facet_wrap(~hash.ID, ncol = 5)
+```
