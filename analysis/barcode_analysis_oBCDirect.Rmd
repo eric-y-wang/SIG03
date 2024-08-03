@@ -3,12 +3,12 @@ title: "SIG03 oBC Direct Amp Barcode Analysis"
 author: "Eric Y. Wang"
 date: "`r Sys.Date()`"
 output:
-  github_document:
-    toc: true
-    html_preview: false
   html_notebook:
     toc: true
     toc_float: true
+  github_document:
+    toc: true
+    html_preview: false
 ---
 
 ```{r setup, include=FALSE}
