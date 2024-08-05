@@ -3,12 +3,12 @@ title: "SIG03 oBC Direct Amp Barcode Analysis"
 author: "Eric Y. Wang"
 date: "`r Sys.Date()`"
 output:
-  html_notebook:
-    toc: true
-    toc_float: true
   github_document:
     toc: true
     html_preview: false
+  html_notebook:
+    toc: true
+    toc_float: true
 ---
 
 ```{r setup, include=FALSE}
@@ -40,7 +40,7 @@ dataSplen <- readRDS("C:/Users/Eric/My Drive/Lab/datasets/EYW/SIG03_10x_240706/s
 
 #### CD4 Barcodes
 
-```{r, fig.height=7, fig.width=12}
+```{r, fig.height=4, fig.width=12}
 metadata <- dataCD4@meta.data %>%
   as_tibble(rownames = "cell_BC") %>%
   mutate(hash.ID = factor(hash.ID, c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9","CD4-6h-0",
@@ -55,24 +55,42 @@ BCdata <- dataCD4@assays$BC@counts %>%
 
 BCdata %>%
   filter(BC %in% c("p139-BC4")) %>%
-    filter(hash.ID != "Treg-4h") %>%
+    filter(hash.ID %in% c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9","CD4-6h-0")) %>%
   ggplot(aes(x = log10counts, fill = hash.ID)) +
     geom_histogram(aes(y = after_stat(density)), bins = 60) +
-    geom_vline(xintercept = log10(30+1)) +
     facet_wrap(~hash.ID, ncol = 5) +
     NoLegend() +
     ggtitle("p139-BC4")
 
 BCdata %>%
   filter(BC %in% c("p139-BC5")) %>%
-    filter(hash.ID != "Treg-4h") %>%
+    filter(hash.ID %in% c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9","CD4-6h-0")) %>%
   ggplot(aes(x = log10counts, fill = hash.ID)) +
     geom_histogram(aes(y = after_stat(density)), bins = 60) +
-    geom_vline(xintercept = log10(30+1)) +
     facet_wrap(~hash.ID, ncol = 5) +
     NoLegend() +
     ggtitle("p139-BC5")
 
+BCdata %>%
+  filter(BC %in% c("p139-BC5")) %>%
+    filter(hash.ID %in% c("CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9","CD4-22h-0")) %>%
+  ggplot(aes(x = log10counts, fill = hash.ID)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 60) +
+    facet_wrap(~hash.ID, ncol = 5) +
+    NoLegend() +
+    ggtitle("p139-BC5")
+
+BCdata %>%
+  filter(BC %in% c("p139-BC5")) %>%
+    filter(hash.ID %in% c("CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9","CD4-22h-0")) %>%
+  ggplot(aes(x = log10counts, fill = hash.ID)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 60) +
+    facet_wrap(~hash.ID, ncol = 5) +
+    NoLegend() +
+    ggtitle("p139-BC5")
+```
+
+```{r, fig.height=9, fig.width=12}
 BCdata %>%
   filter(BC %in% c("p139-BC6")) %>%
   ggplot(aes(x = log10counts, fill = hash.ID)) +
@@ -83,7 +101,12 @@ BCdata %>%
     ggtitle("p139-BC6")
 ```
 
+
 ```{r, fig.height=5, fig.width=15}
+dataCD4$hash.ID <- factor(dataCD4$hash.ID, c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9","CD4-6h-0",
+                                     "CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9","CD4-22h-0",
+                                     "Treg-4h"))
+
 VlnPlot(dataCD4, c("p139-BC4","p139-BC5","p139-BC6"), group.by = "hash.ID", pt.size = 0, assay = "BC")
 ```
 

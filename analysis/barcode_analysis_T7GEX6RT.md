@@ -1,4 +1,4 @@
-SIG03 oBC Direct Amp Barcode Analysis
+SIG03 T7GEX Barcode Analysis
 ================
 Eric Y. Wang
 2024-08-05
@@ -27,8 +27,8 @@ theme_set(theme_Publication())
 # dataCD4 <- readRDS("/Users/wange7/Library/CloudStorage/GoogleDrive-ericwang314@gmail.com/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_CD4.rds")
 # dataSplen <- readRDS("/Users/wange7/Library/CloudStorage/GoogleDrive-ericwang314@gmail.com/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_splenocytes.rds")
 
-dataCD4 <- readRDS("C:/Users/Eric/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_CD4.rds")
-dataSplen <- readRDS("C:/Users/Eric/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_splenocytes.rds")
+dataCD4 <- readRDS("C:/Users/Eric/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_T7GEX6RT_CD4.rds")
+dataSplen <- readRDS("C:/Users/Eric/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_T7GEX6RT_splenocytes.rds")
 ```
 
 ### <u>Visualize Barcode Distributions</u>
@@ -62,7 +62,7 @@ BCdata %>%
     ggtitle("p139-BC4")
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
+![](barcode_analysis_T7GEX6RT_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
 ``` r
 BCdata %>%
@@ -75,7 +75,7 @@ BCdata %>%
     ggtitle("p139-BC5")
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-3-2.png)<!-- -->
+![](barcode_analysis_T7GEX6RT_files/figure-gfm/unnamed-chunk-3-2.png)<!-- -->
 
 ``` r
 BCdata %>%
@@ -88,7 +88,7 @@ BCdata %>%
     ggtitle("p139-BC5")
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-3-3.png)<!-- -->
+![](barcode_analysis_T7GEX6RT_files/figure-gfm/unnamed-chunk-3-3.png)<!-- -->
 
 ``` r
 BCdata %>%
@@ -101,7 +101,7 @@ BCdata %>%
     ggtitle("p139-BC5")
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-3-4.png)<!-- -->
+![](barcode_analysis_T7GEX6RT_files/figure-gfm/unnamed-chunk-3-4.png)<!-- -->
 
 ``` r
 BCdata %>%
@@ -114,7 +114,7 @@ BCdata %>%
     ggtitle("p139-BC6")
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+![](barcode_analysis_T7GEX6RT_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
 
 ``` r
 dataCD4$hash.ID <- factor(dataCD4$hash.ID, c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9","CD4-6h-0",
@@ -124,7 +124,7 @@ dataCD4$hash.ID <- factor(dataCD4$hash.ID, c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h
 VlnPlot(dataCD4, c("p139-BC4","p139-BC5","p139-BC6"), group.by = "hash.ID", pt.size = 0, assay = "BC")
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+![](barcode_analysis_T7GEX6RT_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
 
 #### Splenocyte Barcodes
 
@@ -152,19 +152,19 @@ BCdata %>%
     ggtitle("p139-BC6")
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+![](barcode_analysis_T7GEX6RT_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
 ``` r
 VlnPlot(dataSplen, "p139-BC6", pt.size = 0, assay = "BC")
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](barcode_analysis_T7GEX6RT_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
 ``` r
-VlnPlot(subset(dataSplen, !(subset = clusters_anno %in% c("6_8","10"))), "p139-BC6", pt.size = 0, assay = "BC")
+VlnPlot(subset(dataSplen, !(subset = clusters_anno %in% c("5","10"))), "p139-BC6", pt.size = 0, assay = "BC")
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-7-2.png)<!-- -->
+![](barcode_analysis_T7GEX6RT_files/figure-gfm/unnamed-chunk-7-2.png)<!-- -->
 
 ### <u>Barcode Specificity</u>
 
@@ -239,7 +239,7 @@ for(i in 1:length(testDataList)){
   temp <- mutate(temp, group = names(testDataList)[i])
   results <- bind_rows(results,temp)
 }
-write_csv(results, "analysis_outs/umi_cutoff_oBCDirect_pr_BC4_6h.csv")
+write_csv(results, "analysis_outs/umi_cutoff_T7oBC6RT_pr_BC4_6h.csv")
 
 # plot PR curve
 p1 <- results %>%
@@ -319,7 +319,7 @@ for(i in 1:length(testDataList)){
   temp <- mutate(temp, group = names(testDataList)[i])
   results <- bind_rows(results,temp)
 }
-write_csv(results, "analysis_outs/umi_cutoff_oBCDirect_pr_BC4_22h.csv")
+write_csv(results, "analysis_outs/umi_cutoff_T7oBC6RT_pr_BC4_22h.csv")
 
 # plot PR curve
 p2 <- results %>%
@@ -401,7 +401,7 @@ for(i in 1:length(testDataList)){
   temp <- mutate(temp, group = names(testDataList)[i])
   results <- bind_rows(results,temp)
 }
-write_csv(results, "analysis_outs/umi_cutoff_oBCDirect_pr_BC5_6h.csv")
+write_csv(results, "analysis_outs/umi_cutoff_T7oBC6RT_pr_BC5_6h.csv")
 
 # plot PR curve
 p3 <- results %>%
@@ -481,7 +481,7 @@ for(i in 1:length(testDataList)){
   temp <- mutate(temp, group = names(testDataList)[i])
   results <- bind_rows(results,temp)
 }
-write_csv(results, "analysis_outs/umi_cutoff_oBCDirect_pr_BC5_22h.csv")
+write_csv(results, "analysis_outs/umi_cutoff_T7oBC6RT_pr_BC5_22h.csv")
 
 # plot PR curve
 p4 <- results %>%
@@ -503,19 +503,19 @@ p4 <- results %>%
 plot_grid(p1,p2,p3,p4)
 ```
 
-    ## Warning: Removed 24 rows containing missing values or values outside the scale range
+    ## Warning: Removed 156 rows containing missing values or values outside the scale range
     ## (`geom_line()`).
 
-    ## Warning: Removed 1363 rows containing missing values or values outside the scale range
+    ## Warning: Removed 1497 rows containing missing values or values outside the scale range
     ## (`geom_line()`).
 
-    ## Warning: Removed 23 rows containing missing values or values outside the scale range
+    ## Warning: Removed 157 rows containing missing values or values outside the scale range
     ## (`geom_line()`).
 
-    ## Warning: Removed 1303 rows containing missing values or values outside the scale range
+    ## Warning: Removed 1498 rows containing missing values or values outside the scale range
     ## (`geom_line()`).
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+![](barcode_analysis_T7GEX6RT_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
 
 ``` r
 dataCD4@meta.data %>%
@@ -526,17 +526,17 @@ dataCD4@meta.data %>%
     ## # A tibble: 11 × 2
     ##    hash.ID      count
     ##    <fct>        <int>
-    ##  1 CD4-6h-2e11   2411
-    ##  2 CD4-6h-6e10   1521
-    ##  3 CD4-6h-2e10    755
-    ##  4 CD4-6h-6e9     873
-    ##  5 CD4-6h-0      1905
-    ##  6 CD4-22h-2e11  4832
-    ##  7 CD4-22h-6e10  1928
-    ##  8 CD4-22h-2e10   320
-    ##  9 CD4-22h-6e9    213
-    ## 10 CD4-22h-0      535
-    ## 11 Treg-4h       1154
+    ##  1 CD4-6h-2e11   2465
+    ##  2 CD4-6h-6e10   1558
+    ##  3 CD4-6h-2e10    763
+    ##  4 CD4-6h-6e9     871
+    ##  5 CD4-6h-0      1916
+    ##  6 CD4-22h-2e11  4879
+    ##  7 CD4-22h-6e10  1932
+    ##  8 CD4-22h-2e10   326
+    ##  9 CD4-22h-6e9    204
+    ## 10 CD4-22h-0      567
+    ## 11 Treg-4h       1139
 
 Its weird that there’s such a steep drop-off in the 22h group. Not sure
 if it is an artifact because the cells were not very healthy and I had
@@ -554,4 +554,4 @@ dataCD4@meta.data  %>%
     facet_wrap(~hash.ID, ncol = 5)
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+![](barcode_analysis_T7GEX6RT_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
