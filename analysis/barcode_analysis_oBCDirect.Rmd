@@ -110,6 +110,96 @@ dataCD4$hash.ID <- factor(dataCD4$hash.ID, c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h
 VlnPlot(dataCD4, c("p139-BC4","p139-BC5","p139-BC6"), group.by = "hash.ID", pt.size = 0, assay = "BC")
 ```
 
+```{r, fig.width=10, fig.height=10}
+expressionData <- tibble(cell_bc = colnames(dataCD4),
+                         hash.ID = dataCD4$hash.ID,
+                         BC4 = dataCD4@assays$BC@counts["p139-BC5",],
+                         BC5 = dataCD4@assays$BC@counts["p139-BC4",])
+
+p1 <- expressionData %>%
+  filter(hash.ID %in% c("CD4-6h-2e11")) %>%
+  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
+    geom_point() +
+    stat_density2d(aes(fill = ..level..), geom = "polygon") +
+    scale_fill_viridis_c() +
+    theme(aspect.ratio = 1) +
+    ggtitle("2e11 LP 6h/mL\nSCT normalized Expression")
+
+p2 <- expressionData %>%
+  filter(hash.ID %in% c("CD4-6h-6e10")) %>%
+  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
+    geom_point() +
+    stat_density2d(aes(fill = ..level..), geom = "polygon") +
+    scale_fill_viridis_c() +
+    theme(aspect.ratio = 1) +
+    ggtitle("6e10 LP 6h/mL\nSCT normalized Expression")
+
+p3 <- expressionData %>%
+  filter(hash.ID %in% c("CD4-6h-2e10")) %>%
+  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
+    geom_point() +
+    stat_density2d(aes(fill = ..level..), geom = "polygon") +
+    scale_fill_viridis_c() +
+    theme(aspect.ratio = 1) +
+    ggtitle("2e10 LP/mL 6h\nSCT normalized Expression")
+
+p4 <- expressionData %>%
+  filter(hash.ID %in% c("CD4-6h-6e9")) %>%
+  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
+    geom_point() +
+    stat_density2d(aes(fill = ..level..), geom = "polygon") +
+    scale_fill_viridis_c() +
+    theme(aspect.ratio = 1) +
+    ggtitle("6e9 LP 6h/mL\nSCT normalized Expression")
+
+plot_grid(p1,p2,p3,p4, ncol = 2)
+```
+
+```{r, fig.width=10, fig.height=10}
+expressionData <- tibble(cell_bc = colnames(dataCD4),
+                         hash.ID = dataCD4$hash.ID,
+                         BC4 = dataCD4@assays$BC@data["p139-BC5",],
+                         BC5 = dataCD4@assays$BC@data["p139-BC4",])
+
+p1 <- expressionData %>%
+  filter(hash.ID %in% c("CD4-22h-2e11")) %>%
+  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
+    geom_point() +
+    stat_density2d(aes(fill = ..level..), geom = "polygon") +
+    scale_fill_viridis_c() +
+    theme(aspect.ratio = 1) +
+    ggtitle("2e11 LP 22h/mL\nSCT normalized Expression")
+
+p2 <- expressionData %>%
+  filter(hash.ID %in% c("CD4-22h-6e10")) %>%
+  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
+    geom_point() +
+    stat_density2d(aes(fill = ..level..), geom = "polygon") +
+    scale_fill_viridis_c() +
+    theme(aspect.ratio = 1) +
+    ggtitle("6e10 LP 22h/mL\nSCT normalized Expression")
+
+p3 <- expressionData %>%
+  filter(hash.ID %in% c("CD4-22h-2e10")) %>%
+  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
+    geom_point() +
+    stat_density2d(aes(fill = ..level..), geom = "polygon") +
+    scale_fill_viridis_c() +
+    theme(aspect.ratio = 1) +
+    ggtitle("2e10 LP/mL 22h\nSCT normalized Expression")
+
+p4 <- expressionData %>%
+  filter(hash.ID %in% c("CD4-22h-6e9")) %>%
+  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
+    geom_point() +
+    stat_density2d(aes(fill = ..level..), geom = "polygon") +
+    scale_fill_viridis_c() +
+    theme(aspect.ratio = 1) +
+    ggtitle("6e9 LP 22h/mL\nSCT normalized Expression")
+
+plot_grid(p1,p2,p3,p4, ncol = 2)
+```
+
 #### Splenocyte Barcodes
 
 ```{r, fig.height=7, fig.width=8}
@@ -126,11 +216,23 @@ BCdata %>%
   filter(BC %in% c("p139-BC6")) %>%
   ggplot(aes(x = log10counts, fill = clusters_anno)) +
     geom_histogram(aes(y = after_stat(density)), bins = 60) +
-    geom_vline(xintercept = log10(20+1)) +
+    geom_vline(xintercept = log10(100+1)) +
     facet_wrap(~clusters_anno) +
     NoLegend() +
     ggtitle("p139-BC6")
 ```
+
+```{r,fig.height=4, fig.width=16}
+BCdata %>%
+  filter(BC %in% c("p139-BC6")) %>%
+  filter(!(clusters_anno %in% c("6_8","10"))) %>%
+  ggplot(aes(x = log10counts, fill = clusters_anno)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 60) +
+    facet_wrap(~clusters_anno, ncol = 5) +
+    NoLegend() +
+    ggtitle("p139-BC6")
+```
+
 
 ```{r, fig.height=5, fig.width=5}
 VlnPlot(dataSplen, "p139-BC6", pt.size = 0, assay = "BC")

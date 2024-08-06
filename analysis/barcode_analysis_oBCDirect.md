@@ -126,6 +126,106 @@ VlnPlot(dataCD4, c("p139-BC4","p139-BC5","p139-BC6"), group.by = "hash.ID", pt.s
 
 ![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
 
+``` r
+expressionData <- tibble(cell_bc = colnames(dataCD4),
+                         hash.ID = dataCD4$hash.ID,
+                         BC4 = dataCD4@assays$BC@counts["p139-BC5",],
+                         BC5 = dataCD4@assays$BC@counts["p139-BC4",])
+
+p1 <- expressionData %>%
+  filter(hash.ID %in% c("CD4-6h-2e11")) %>%
+  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
+    geom_point() +
+    stat_density2d(aes(fill = ..level..), geom = "polygon") +
+    scale_fill_viridis_c() +
+    theme(aspect.ratio = 1) +
+    ggtitle("2e11 LP 6h/mL\nSCT normalized Expression")
+
+p2 <- expressionData %>%
+  filter(hash.ID %in% c("CD4-6h-6e10")) %>%
+  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
+    geom_point() +
+    stat_density2d(aes(fill = ..level..), geom = "polygon") +
+    scale_fill_viridis_c() +
+    theme(aspect.ratio = 1) +
+    ggtitle("6e10 LP 6h/mL\nSCT normalized Expression")
+
+p3 <- expressionData %>%
+  filter(hash.ID %in% c("CD4-6h-2e10")) %>%
+  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
+    geom_point() +
+    stat_density2d(aes(fill = ..level..), geom = "polygon") +
+    scale_fill_viridis_c() +
+    theme(aspect.ratio = 1) +
+    ggtitle("2e10 LP/mL 6h\nSCT normalized Expression")
+
+p4 <- expressionData %>%
+  filter(hash.ID %in% c("CD4-6h-6e9")) %>%
+  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
+    geom_point() +
+    stat_density2d(aes(fill = ..level..), geom = "polygon") +
+    scale_fill_viridis_c() +
+    theme(aspect.ratio = 1) +
+    ggtitle("6e9 LP 6h/mL\nSCT normalized Expression")
+
+plot_grid(p1,p2,p3,p4, ncol = 2)
+```
+
+    ## Warning: The dot-dot notation (`..level..`) was deprecated in ggplot2 3.4.0.
+    ## ℹ Please use `after_stat(level)` instead.
+    ## This warning is displayed once every 8 hours.
+    ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
+    ## generated.
+
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+
+``` r
+expressionData <- tibble(cell_bc = colnames(dataCD4),
+                         hash.ID = dataCD4$hash.ID,
+                         BC4 = dataCD4@assays$BC@data["p139-BC5",],
+                         BC5 = dataCD4@assays$BC@data["p139-BC4",])
+
+p1 <- expressionData %>%
+  filter(hash.ID %in% c("CD4-22h-2e11")) %>%
+  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
+    geom_point() +
+    stat_density2d(aes(fill = ..level..), geom = "polygon") +
+    scale_fill_viridis_c() +
+    theme(aspect.ratio = 1) +
+    ggtitle("2e11 LP 22h/mL\nSCT normalized Expression")
+
+p2 <- expressionData %>%
+  filter(hash.ID %in% c("CD4-22h-6e10")) %>%
+  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
+    geom_point() +
+    stat_density2d(aes(fill = ..level..), geom = "polygon") +
+    scale_fill_viridis_c() +
+    theme(aspect.ratio = 1) +
+    ggtitle("6e10 LP 22h/mL\nSCT normalized Expression")
+
+p3 <- expressionData %>%
+  filter(hash.ID %in% c("CD4-22h-2e10")) %>%
+  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
+    geom_point() +
+    stat_density2d(aes(fill = ..level..), geom = "polygon") +
+    scale_fill_viridis_c() +
+    theme(aspect.ratio = 1) +
+    ggtitle("2e10 LP/mL 22h\nSCT normalized Expression")
+
+p4 <- expressionData %>%
+  filter(hash.ID %in% c("CD4-22h-6e9")) %>%
+  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
+    geom_point() +
+    stat_density2d(aes(fill = ..level..), geom = "polygon") +
+    scale_fill_viridis_c() +
+    theme(aspect.ratio = 1) +
+    ggtitle("6e9 LP 22h/mL\nSCT normalized Expression")
+
+plot_grid(p1,p2,p3,p4, ncol = 2)
+```
+
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+
 #### Splenocyte Barcodes
 
 ``` r
@@ -146,25 +246,38 @@ BCdata %>%
   filter(BC %in% c("p139-BC6")) %>%
   ggplot(aes(x = log10counts, fill = clusters_anno)) +
     geom_histogram(aes(y = after_stat(density)), bins = 60) +
-    geom_vline(xintercept = log10(20+1)) +
+    geom_vline(xintercept = log10(100+1)) +
     facet_wrap(~clusters_anno) +
     NoLegend() +
     ggtitle("p139-BC6")
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+
+``` r
+BCdata %>%
+  filter(BC %in% c("p139-BC6")) %>%
+  filter(!(clusters_anno %in% c("6_8","10"))) %>%
+  ggplot(aes(x = log10counts, fill = clusters_anno)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 60) +
+    facet_wrap(~clusters_anno, ncol = 5) +
+    NoLegend() +
+    ggtitle("p139-BC6")
+```
+
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
 
 ``` r
 VlnPlot(dataSplen, "p139-BC6", pt.size = 0, assay = "BC")
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
 
 ``` r
 VlnPlot(subset(dataSplen, !(subset = clusters_anno %in% c("6_8","10"))), "p139-BC6", pt.size = 0, assay = "BC")
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-7-2.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-10-2.png)<!-- -->
 
 ### <u>Barcode Classification</u>
 
@@ -583,13 +696,13 @@ plot_grid(pr1,pr2,pr3,pr4)
     ## Warning: Removed 3303 rows containing missing values or values outside the scale range
     ## (`geom_line()`).
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
 
 ``` r
 plot_grid(roc1,roc2,roc3,roc4)
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-17-2.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-20-2.png)<!-- -->
 
 ``` r
 dataCD4@meta.data %>%
@@ -628,4 +741,4 @@ dataCD4@meta.data  %>%
     facet_wrap(~hash.ID, ncol = 5)
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
