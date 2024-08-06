@@ -6,7 +6,7 @@ Eric Y. Wang
 - [<u>Import Data</u>](#import-data)
 - [<u>Visualize Barcode
   Distributions</u>](#visualize-barcode-distributions)
-- [<u>Barcode Specificity</u>](#barcode-specificity)
+- [<u>Barcode Classification</u>](#barcode-classification)
 
 ``` r
 source("functions/plotting_fxns.R")
@@ -79,13 +79,13 @@ BCdata %>%
 
 ``` r
 BCdata %>%
-  filter(BC %in% c("p139-BC5")) %>%
+  filter(BC %in% c("p139-BC4")) %>%
     filter(hash.ID %in% c("CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9","CD4-22h-0")) %>%
   ggplot(aes(x = log10counts, fill = hash.ID)) +
     geom_histogram(aes(y = after_stat(density)), bins = 60) +
     facet_wrap(~hash.ID, ncol = 5) +
     NoLegend() +
-    ggtitle("p139-BC5")
+    ggtitle("p139-BC4")
 ```
 
 ![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-3-3.png)<!-- -->
@@ -166,7 +166,7 @@ VlnPlot(subset(dataSplen, !(subset = clusters_anno %in% c("6_8","10"))), "p139-B
 
 ![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-7-2.png)<!-- -->
 
-### <u>Barcode Specificity</u>
+### <u>Barcode Classification</u>
 
 ``` r
 data6hCD4 <- subset(dataCD4, subset = hash.ID %in% c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9","CD4-6h-0"))
@@ -218,7 +218,7 @@ classify_cells <- function(data, umi_cutoff) {
 }
 
 # range of UMI cutoffs to test
-umi_cutoffs <- seq(0,500, by = 1)
+umi_cutoffs <- seq(0,1000, by = 1)
 
 results <- tibble()
 for(i in 1:length(testDataList)){
@@ -229,9 +229,12 @@ for(i in 1:length(testDataList)){
     precision(truth = label, estimate = predicted_label) %>%
     bind_rows(
       classified_data %>%
-      recall(truth = label, estimate = predicted_label)
+        recall(truth = label, estimate = predicted_label),
+      classified_data %>%
+        sensitivity(truth = label, estimate = predicted_label),
+      classified_data %>%
+        specificity(truth = label, estimate = predicted_label),
     )
-  
   metrics %>%
     mutate(umi_cutoff = cutoff)
   })
@@ -239,20 +242,34 @@ for(i in 1:length(testDataList)){
   temp <- mutate(temp, group = names(testDataList)[i])
   results <- bind_rows(results,temp)
 }
-write_csv(results, "analysis_outs/umi_cutoff_oBCDirect_pr_BC4_6h.csv")
+write_csv(results, "analysis_outs/umi_cutoff_oBCDirect_metrics_BC4_6h.csv")
 
 # plot PR curve
-p1 <- results %>%
+pr1 <- results %>%
   filter(.metric %in% c("precision", "recall")) %>%
   pivot_wider(names_from = .metric, values_from = .estimate) %>%
   mutate(group = factor(group, c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9"))) %>%
   ggplot(aes(x = recall, y = precision, color = group)) +
-    geom_line() +
+    geom_line(linewidth=1) +
     scale_color_brewer(palette = "Dark2") +
     labs(title = "PR Curve 6h BC4", x = "Recall", y = "Precision") +
     theme(aspect.ratio = 1) +
     xlim(0.5,1) +
     ylim(0.5,1)
+
+# plot ROC
+roc1 <- results %>%
+  filter(.metric %in% c("sensitivity", "specificity")) %>%
+  pivot_wider(names_from = .metric, values_from = .estimate) %>%
+  mutate(FPR = 1-specificity) %>%
+  mutate(group = factor(group, c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9"))) %>%
+  ggplot(aes(x = FPR, y = sensitivity, color = group)) +
+    geom_line(linewidth=1) +
+    scale_color_brewer(palette = "Dark2") +
+    labs(title = "ROC 6h BC4", x = "False Positive Rate", y = "True Positive Rate") +
+    theme(aspect.ratio = 1) +
+    xlim(0,1) +
+    ylim(0,1)
 ```
 
 Create test datasets for 22h
@@ -298,7 +315,7 @@ classify_cells <- function(data, umi_cutoff) {
 }
 
 # range of UMI cutoffs to test
-umi_cutoffs <- seq(0,500, by = 1)
+umi_cutoffs <- seq(0,1000, by = 1)
 
 results <- tibble()
 for(i in 1:length(testDataList)){
@@ -309,9 +326,12 @@ for(i in 1:length(testDataList)){
     precision(truth = label, estimate = predicted_label) %>%
     bind_rows(
       classified_data %>%
-      recall(truth = label, estimate = predicted_label)
+        recall(truth = label, estimate = predicted_label),
+      classified_data %>%
+        sensitivity(truth = label, estimate = predicted_label),
+      classified_data %>%
+        specificity(truth = label, estimate = predicted_label),
     )
-  
   metrics %>%
     mutate(umi_cutoff = cutoff)
   })
@@ -319,20 +339,34 @@ for(i in 1:length(testDataList)){
   temp <- mutate(temp, group = names(testDataList)[i])
   results <- bind_rows(results,temp)
 }
-write_csv(results, "analysis_outs/umi_cutoff_oBCDirect_pr_BC4_22h.csv")
+write_csv(results, "analysis_outs/umi_cutoff_oBCDirect_metrics_BC4_22h.csv")
 
 # plot PR curve
-p2 <- results %>%
+pr2 <- results %>%
   filter(.metric %in% c("precision", "recall")) %>%
   pivot_wider(names_from = .metric, values_from = .estimate) %>%
   mutate(group = factor(group, c("CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9"))) %>%
   ggplot(aes(x = recall, y = precision, color = group)) +
-    geom_line() +
+    geom_line(linewidth=1) +
     scale_color_brewer(palette = "Dark2") +
     labs(title = "PR Curve 22h BC4", x = "Recall", y = "Precision") +
     theme(aspect.ratio = 1) +
     xlim(0.5,1) +
     ylim(0.5,1)
+
+# plot ROC
+roc2 <- results %>%
+  filter(.metric %in% c("sensitivity", "specificity")) %>%
+  pivot_wider(names_from = .metric, values_from = .estimate) %>%
+  mutate(FPR = 1-specificity) %>%
+  mutate(group = factor(group, c("CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9"))) %>%
+  ggplot(aes(x = FPR, y = sensitivity, color = group)) +
+    geom_line(linewidth=1) +
+    scale_color_brewer(palette = "Dark2") +
+    labs(title = "ROC 22h BC4", x = "False Positive Rate", y = "True Positive Rate") +
+    theme(aspect.ratio = 1) +
+    xlim(0,1) +
+    ylim(0,1)
 ```
 
 #### Barcode 5 Recall
@@ -380,7 +414,7 @@ classify_cells <- function(data, umi_cutoff) {
 }
 
 # range of UMI cutoffs to test
-umi_cutoffs <- seq(0,500, by = 1)
+umi_cutoffs <- seq(0,1000, by = 1)
 
 results <- tibble()
 for(i in 1:length(testDataList)){
@@ -391,9 +425,12 @@ for(i in 1:length(testDataList)){
     precision(truth = label, estimate = predicted_label) %>%
     bind_rows(
       classified_data %>%
-      recall(truth = label, estimate = predicted_label)
+        recall(truth = label, estimate = predicted_label),
+      classified_data %>%
+        sensitivity(truth = label, estimate = predicted_label),
+      classified_data %>%
+        specificity(truth = label, estimate = predicted_label),
     )
-  
   metrics %>%
     mutate(umi_cutoff = cutoff)
   })
@@ -401,20 +438,34 @@ for(i in 1:length(testDataList)){
   temp <- mutate(temp, group = names(testDataList)[i])
   results <- bind_rows(results,temp)
 }
-write_csv(results, "analysis_outs/umi_cutoff_oBCDirect_pr_BC5_6h.csv")
+write_csv(results, "analysis_outs/umi_cutoff_oBCDirect_metrics_BC5_6h.csv")
 
 # plot PR curve
-p3 <- results %>%
+pr3 <- results %>%
   filter(.metric %in% c("precision", "recall")) %>%
   pivot_wider(names_from = .metric, values_from = .estimate) %>%
   mutate(group = factor(group, c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9"))) %>%
   ggplot(aes(x = recall, y = precision, color = group)) +
-    geom_line() +
+    geom_line(linewidth=1) +
     scale_color_brewer(palette = "Dark2") +
     labs(title = "PR Curve 6h BC5", x = "Recall", y = "Precision") +
     theme(aspect.ratio = 1) +
     xlim(0.5,1) +
     ylim(0.5,1)
+
+# plot ROC
+roc3 <- results %>%
+  filter(.metric %in% c("sensitivity", "specificity")) %>%
+  pivot_wider(names_from = .metric, values_from = .estimate) %>%
+  mutate(FPR = 1-specificity) %>%
+  mutate(group = factor(group, c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9"))) %>%
+  ggplot(aes(x = FPR, y = sensitivity, color = group)) +
+    geom_line(linewidth=1) +
+    scale_color_brewer(palette = "Dark2") +
+    labs(title = "ROC 6h BC5", x = "False Positive Rate", y = "True Positive Rate") +
+    theme(aspect.ratio = 1) +
+    xlim(0,1) +
+    ylim(0,1)
 ```
 
 Create test datasets for 22h
@@ -460,7 +511,7 @@ classify_cells <- function(data, umi_cutoff) {
 }
 
 # range of UMI cutoffs to test
-umi_cutoffs <- seq(0,500, by = 1)
+umi_cutoffs <- seq(0,1000, by = 1)
 
 results <- tibble()
 for(i in 1:length(testDataList)){
@@ -471,9 +522,12 @@ for(i in 1:length(testDataList)){
     precision(truth = label, estimate = predicted_label) %>%
     bind_rows(
       classified_data %>%
-      recall(truth = label, estimate = predicted_label)
+        recall(truth = label, estimate = predicted_label),
+      classified_data %>%
+        sensitivity(truth = label, estimate = predicted_label),
+      classified_data %>%
+        specificity(truth = label, estimate = predicted_label),
     )
-  
   metrics %>%
     mutate(umi_cutoff = cutoff)
   })
@@ -481,41 +535,61 @@ for(i in 1:length(testDataList)){
   temp <- mutate(temp, group = names(testDataList)[i])
   results <- bind_rows(results,temp)
 }
-write_csv(results, "analysis_outs/umi_cutoff_oBCDirect_pr_BC5_22h.csv")
+write_csv(results, "analysis_outs/umi_cutoff_oBCDirect_metrics_BC5_22h.csv")
 
 # plot PR curve
-p4 <- results %>%
+pr4 <- results %>%
   filter(.metric %in% c("precision", "recall")) %>%
   pivot_wider(names_from = .metric, values_from = .estimate) %>%
   mutate(group = factor(group, c("CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9"))) %>%
   ggplot(aes(x = recall, y = precision, color = group)) +
-    geom_line() +
+    geom_line(linewidth=1) +
     scale_color_brewer(palette = "Dark2") +
     labs(title = "PR Curve 22h BC5", x = "Recall", y = "Precision") +
     theme(aspect.ratio = 1) +
     xlim(0.5,1) +
     ylim(0.5,1)
+
+# plot ROC
+roc4 <- results %>%
+  filter(.metric %in% c("sensitivity", "specificity")) %>%
+  pivot_wider(names_from = .metric, values_from = .estimate) %>%
+  mutate(FPR = 1-specificity) %>%
+  mutate(group = factor(group, c("CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9"))) %>%
+  ggplot(aes(x = FPR, y = sensitivity, color = group)) +
+    geom_line(linewidth=1) +
+    scale_color_brewer(palette = "Dark2") +
+    labs(title = "ROC 22h BC5", x = "False Positive Rate", y = "True Positive Rate") +
+    theme(aspect.ratio = 1) +
+    xlim(0,1) +
+    ylim(0,1)
 ```
 
 #### Visualize
 
 ``` r
-plot_grid(p1,p2,p3,p4)
+plot_grid(pr1,pr2,pr3,pr4)
 ```
 
-    ## Warning: Removed 24 rows containing missing values or values outside the scale range
+    ## Warning: Removed 1210 rows containing missing values or values outside the scale range
     ## (`geom_line()`).
 
-    ## Warning: Removed 1363 rows containing missing values or values outside the scale range
+    ## Warning: Removed 3363 rows containing missing values or values outside the scale range
     ## (`geom_line()`).
 
-    ## Warning: Removed 23 rows containing missing values or values outside the scale range
+    ## Warning: Removed 1110 rows containing missing values or values outside the scale range
     ## (`geom_line()`).
 
-    ## Warning: Removed 1303 rows containing missing values or values outside the scale range
+    ## Warning: Removed 3303 rows containing missing values or values outside the scale range
     ## (`geom_line()`).
 
 ![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+
+``` r
+plot_grid(roc1,roc2,roc3,roc4)
+```
+
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-17-2.png)<!-- -->
 
 ``` r
 dataCD4@meta.data %>%
