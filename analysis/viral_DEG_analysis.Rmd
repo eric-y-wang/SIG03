@@ -139,7 +139,14 @@ p2 <- degTibSig %>%
 p1+p2
 ```
 
-I'm worried that the 22h 6e10 - 6e9 conditions may be biased because of fewer numbers of cells in those conditions.
+I'm worried that the 6e10 - 6e9 conditions may be biased because of fewer numbers of cells in those conditions. See below:
+```{r}
+dataCD4@meta.data %>%
+  group_by(hash.ID) %>%
+  mutate(hash.ID = factor(hash.ID, c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9","CD4-6h-0","CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9","CD4-22h-0","Treg-4h"))) %>%
+  summarize(num_cells = n()) %>%
+  mutate(percent = num_cells/sum(num_cells)*100)
+```
 
 Plot DEGs between different viral titers at 6h
 ```{r, fig.height=5, fig.width=5}
@@ -220,6 +227,7 @@ plot_grid(p3,p4,p5,p6, ncol = 4)
 ```
 
 ```{r, fig.height=5, fig.width=12}
+# identify significant genes from any condition
 sigGenes <- filter(degTibSig, conditions %in% c("6h-2e11","6h-6e10","6h-2e10","6h-6e9"))$genes %>% unique()
 
 p1 <- degTib %>%

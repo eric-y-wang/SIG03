@@ -1,7 +1,7 @@
 SIG03 Viral-induced DEG analysis
 ================
 Eric Y. Wang
-2024-08-04
+2024-08-05
 
 - [<u>Import Data</u>](#import-data)
 - [<u>Seurat DEG calculations</u>](#seurat-deg-calculations)
@@ -136,8 +136,31 @@ p1+p2
 
 ![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
 
-I’m worried that the 22h 6e10 - 6e9 conditions may be biased because of
-fewer numbers of cells in those conditions.
+I’m worried that the 6e10 - 6e9 conditions may be biased because of
+fewer numbers of cells in those conditions. See below:
+
+``` r
+dataCD4@meta.data %>%
+  group_by(hash.ID) %>%
+  mutate(hash.ID = factor(hash.ID, c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9","CD4-6h-0","CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9","CD4-22h-0","Treg-4h"))) %>%
+  summarize(num_cells = n()) %>%
+  mutate(percent = num_cells/sum(num_cells)*100)
+```
+
+    ## # A tibble: 11 × 3
+    ##    hash.ID      num_cells percent
+    ##    <fct>            <int>   <dbl>
+    ##  1 CD4-6h-2e11       2411   14.7 
+    ##  2 CD4-6h-6e10       1521    9.25
+    ##  3 CD4-6h-2e10        755    4.59
+    ##  4 CD4-6h-6e9         873    5.31
+    ##  5 CD4-6h-0          1905   11.6 
+    ##  6 CD4-22h-2e11      4832   29.4 
+    ##  7 CD4-22h-6e10      1928   11.7 
+    ##  8 CD4-22h-2e10       320    1.95
+    ##  9 CD4-22h-6e9        213    1.30
+    ## 10 CD4-22h-0          535    3.25
+    ## 11 Treg-4h           1154    7.02
 
 Plot DEGs between different viral titers at 6h
 
@@ -150,7 +173,7 @@ ggplot(degTibViralTiterSig, aes(x = conditions, fill = conditions)) +
   ggtitle("number of DEGs")
 ```
 
-![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
 #### overlap comparisons
 
@@ -217,15 +240,16 @@ p6 <- degTibSig %>%
 p1+p2
 ```
 
-![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
 
 ``` r
 plot_grid(p3,p4,p5,p6, ncol = 4)
 ```
 
-![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
 
 ``` r
+# identify significant genes from any condition
 sigGenes <- filter(degTibSig, conditions %in% c("6h-2e11","6h-6e10","6h-2e10","6h-6e9"))$genes %>% unique()
 
 p1 <- degTib %>%
@@ -264,7 +288,7 @@ p3 <- degTib %>%
 p1+p2+p3
 ```
 
-![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
 
 ``` r
 sigGenes <- filter(degTibSig, conditions %in% c("22h-2e11","22h-6e10","22h-2e10","22h-6e9"))$genes %>% unique()
@@ -313,7 +337,7 @@ p1+p2+p3
     ## Warning: Removed 8 rows containing missing values or values outside the scale range
     ## (`geom_point()`).
 
-![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
 
 ``` r
 sigGenes <- filter(degTibSig, conditions %in% c("22h-2e11","6h-2e11"))$genes %>% unique()
@@ -343,7 +367,7 @@ p2 <- degTib %>%
 p1+p2
 ```
 
-![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
 ### <u>DEG signature analysis</u>
 
@@ -376,7 +400,7 @@ degTibSig %>%
     theme(aspect.ratio = 1)
 ```
 
-![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
 
 ``` r
 # identify genes that are shared by 3 or 4 conditions at 6h
@@ -404,7 +428,7 @@ degTibSig %>%
     ## Warning: ggrepel: 879 unlabeled data points (too many overlaps). Consider
     ## increasing max.overlaps
 
-![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
 
 ``` r
 degTibSig %>%
@@ -423,7 +447,7 @@ degTibSig %>%
     ## Warning: ggrepel: 294 unlabeled data points (too many overlaps). Consider
     ## increasing max.overlaps
 
-![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-14-2.png)<!-- -->
+![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-15-2.png)<!-- -->
 
 ``` r
 # identify genes that are shared by 3 or 4 conditions at 6h
@@ -452,7 +476,7 @@ degTibSig %>%
     ## Warning: ggrepel: 586 unlabeled data points (too many overlaps). Consider
     ## increasing max.overlaps
 
-![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
 
 ``` r
 degTibSig %>%
@@ -471,7 +495,7 @@ degTibSig %>%
     ## Warning: ggrepel: 224 unlabeled data points (too many overlaps). Consider
     ## increasing max.overlaps
 
-![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-15-2.png)<!-- -->
+![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-16-2.png)<!-- -->
 
 #### GSEA analysis
 
@@ -684,7 +708,7 @@ gseaTestImmune %>%
     ggtitle("Significant Immune Reactome Pathways")
 ```
 
-![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
 Only the immune dataset had some significant sets. The other datasets
 did not have significant pathways. Here, size represents the number of
 genes present in my data in the pathway.
