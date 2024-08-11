@@ -1,7 +1,7 @@
 SIG03 Viral-induced DEG analysis
 ================
 Eric Y. Wang
-2024-08-05
+2024-08-11
 
 - [<u>Import Data</u>](#import-data)
 - [<u>Seurat DEG calculations</u>](#seurat-deg-calculations)
@@ -75,9 +75,11 @@ degTib <- mutate(degTib, conditions = factor(conditions, c("6h-2e11","6h-6e10","
 
 # remove p139 gene
 degTib <- filter(degTib, genes != "p139-T7oBC5p-MS2")
+write_csv(degTib, "analysis_outs/viral_DEG_all.csv")
 
 # create separate tibble with significant genes
 degTibSig <- filter(degTib, p_val_adj < 0.1)
+write_csv(degTibSig, "analysis_outs/viral_DEG_sig.csv")
 ```
 
 ``` r
@@ -649,6 +651,8 @@ library(org.Hs.eg.db)
 
     ## 
 
+##### 6h shared genes
+
 ``` r
 # identify genes that are shared by 3 or 4 conditions at 6h
 sharedGenes <- degTibSig %>%
@@ -687,28 +691,231 @@ gseaDEG <- deframe(dplyr::select(gseaDEG, c(human_symbol,rank)))
 
 ``` r
 # perform GSEA
-gseaTestImmune <- fgseaMultilevel(pathways = pathImmune,
+gseaTestImmuneShared <- fgseaMultilevel(pathways = pathImmune,
                                   stats = gseaDEG,
                                   minSize = 5)
-gseaTestHallmark <- fgseaMultilevel(pathways = pathHallmark,
+gseaTestHallmarkShared <- fgseaMultilevel(pathways = pathHallmark,
                                   stats = gseaDEG,
                                   minSize = 5)
-gseaTestReactome <- fgseaMultilevel(pathways = pathReactome,
+gseaTestReactomeShared <- fgseaMultilevel(pathways = pathReactome,
                                   stats = gseaDEG,
                                   minSize = 5)
 ```
 
 ``` r
-gseaTestImmune %>%
+sum(gseaTestImmuneShared$padj < 0.1)
+```
+
+    ## [1] 34
+
+``` r
+sum(gseaTestHallmarkShared$padj < 0.1)
+```
+
+    ## [1] 0
+
+``` r
+sum(gseaTestReactomeShared$padj < 0.1)
+```
+
+    ## [1] 0
+
+``` r
+gseaTestImmuneShared %>%
   as_tibble() %>%
   filter(padj < 0.1) %>%
-  ggplot(aes(x = NES, y = pathway, fill = -log10(padj), size = size)) +
+  ggplot(aes(x = NES, y = pathway, fill = padj, size = size)) +
     geom_point(shape = 21, color = "black") +
     scale_fill_viridis_c() +
     ggtitle("Significant Immune Reactome Pathways")
 ```
 
-![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
+
+``` r
+gseaTestImmuneShared %>%
+  as_tibble() %>%
+  filter(padj < 0.1) %>%
+  filter(grepl("TCELL",pathway)) %>%
+  ggplot(aes(x = NES, y = pathway, fill = padj, size = size)) +
+    geom_point(shape = 21, color = "black") +
+    scale_fill_viridis_c() +
+    ggtitle("Significant T cell Immune Reactome Pathways") +
+    xlim(-2,2)
+```
+
+![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
+
+``` r
+gseaTestHallmarkShared %>%
+  as_tibble() %>%
+  filter(padj < 0.1) %>%
+  ggplot(aes(x = NES, y = pathway, fill = padj, size = size)) +
+    geom_point(shape = 21, color = "black") +
+    scale_fill_viridis_c() +
+    ggtitle("Significant Hallmark Reactome Pathways") +
+    xlim(-2,2)
+```
+
+![](viral_DEG_analysis_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
+
 Only the immune dataset had some significant sets. The other datasets
 did not have significant pathways. Here, size represents the number of
 genes present in my data in the pathway.
+
+##### 6h 2e11
+
+``` r
+# calculate and rank shared genes
+degTibGsea <- degTib %>%
+  filter(conditions == "6h-2e11") %>%
+  mutate(rank = avg_log2FC*-log10(p_val_adj)) %>%
+  arrange(desc(rank))
+
+# convert mouse to human genes and join with DEG list
+humanGenes <- orthologs(degTibGsea$genes, species = "mouse", human = F)
+humanGenes <- humanGenes %>%
+  as_tibble() %>%
+  dplyr::rename(genes = symbol) %>%
+  dplyr::select(human_symbol, genes)
+
+# inner_join to remove mouse genes that have no human homolog
+# calculate FC_pvalue to use as GSEA statistic
+gseaDEG <- inner_join(degTibGsea, humanGenes) %>%
+  arrange(desc(rank))
+```
+
+    ## Joining with `by = join_by(genes)`
+
+``` r
+gseaDEG <- deframe(dplyr::select(gseaDEG, c(human_symbol,rank)))
+```
+
+``` r
+# perform GSEA
+gseaTestImmune6h <- fgseaMultilevel(pathways = pathImmune,
+                                  stats = gseaDEG,
+                                  minSize = 5)
+```
+
+    ## Warning in preparePathwaysAndStats(pathways, stats, minSize, maxSize,
+    ## gseaParam, : There are duplicate gene names, fgsea may produce unexpected
+    ## results.
+
+``` r
+gseaTestHallmark6h <- fgseaMultilevel(pathways = pathHallmark,
+                                  stats = gseaDEG,
+                                  minSize = 5)
+```
+
+    ## Warning in preparePathwaysAndStats(pathways, stats, minSize, maxSize,
+    ## gseaParam, : There are duplicate gene names, fgsea may produce unexpected
+    ## results.
+
+``` r
+gseaTestReactome6h <- fgseaMultilevel(pathways = pathReactome,
+                                  stats = gseaDEG,
+                                  minSize = 5)
+```
+
+    ## Warning in preparePathwaysAndStats(pathways, stats, minSize, maxSize,
+    ## gseaParam, : There are duplicate gene names, fgsea may produce unexpected
+    ## results.
+
+``` r
+sum(gseaTestImmune6h$padj < 0.1)
+```
+
+    ## [1] 0
+
+``` r
+sum(gseaTestHallmark6h$padj < 0.1)
+```
+
+    ## [1] 0
+
+``` r
+sum(gseaTestReactome6h$padj < 0.1)
+```
+
+    ## [1] 0
+
+##### 22h 2e11
+
+``` r
+# calculate and rank shared genes
+degTibGsea <- degTib %>%
+  filter(conditions == "22h-2e11") %>%
+  mutate(rank = avg_log2FC*-log10(p_val_adj)) %>%
+  arrange(desc(rank))
+
+# convert mouse to human genes and join with DEG list
+humanGenes <- orthologs(degTibGsea$genes, species = "mouse", human = F)
+humanGenes <- humanGenes %>%
+  as_tibble() %>%
+  dplyr::rename(genes = symbol) %>%
+  dplyr::select(human_symbol, genes)
+
+# inner_join to remove mouse genes that have no human homolog
+# calculate FC_pvalue to use as GSEA statistic
+gseaDEG <- inner_join(degTibGsea, humanGenes) %>%
+  arrange(desc(rank))
+```
+
+    ## Joining with `by = join_by(genes)`
+
+``` r
+gseaDEG <- deframe(dplyr::select(gseaDEG, c(human_symbol,rank)))
+```
+
+``` r
+# perform GSEA
+gseaTestImmune22h <- fgseaMultilevel(pathways = pathImmune,
+                                  stats = gseaDEG,
+                                  minSize = 5)
+```
+
+    ## Warning in preparePathwaysAndStats(pathways, stats, minSize, maxSize, gseaParam, : There are ties in the preranked stats (0.03% of the list).
+    ## The order of those tied genes will be arbitrary, which may produce unexpected results.
+
+    ## Warning in preparePathwaysAndStats(pathways, stats, minSize, maxSize,
+    ## gseaParam, : There are duplicate gene names, fgsea may produce unexpected
+    ## results.
+
+``` r
+gseaTestHallmark22h <- fgseaMultilevel(pathways = pathHallmark,
+                                  stats = gseaDEG,
+                                  minSize = 5)
+```
+
+    ## Warning in preparePathwaysAndStats(pathways, stats, minSize, maxSize, gseaParam, : There are ties in the preranked stats (0.03% of the list).
+    ## The order of those tied genes will be arbitrary, which may produce unexpected results.
+    ## Warning in preparePathwaysAndStats(pathways, stats, minSize, maxSize, gseaParam, : There are duplicate gene names, fgsea may produce unexpected results.
+
+``` r
+gseaTestReactome22h <- fgseaMultilevel(pathways = pathReactome,
+                                  stats = gseaDEG,
+                                  minSize = 5)
+```
+
+    ## Warning in preparePathwaysAndStats(pathways, stats, minSize, maxSize, gseaParam, : There are ties in the preranked stats (0.03% of the list).
+    ## The order of those tied genes will be arbitrary, which may produce unexpected results.
+    ## Warning in preparePathwaysAndStats(pathways, stats, minSize, maxSize, gseaParam, : There are duplicate gene names, fgsea may produce unexpected results.
+
+``` r
+sum(gseaTestImmune22h$padj < 0.1)
+```
+
+    ## [1] 0
+
+``` r
+sum(gseaTestHallmark22h$padj < 0.1)
+```
+
+    ## [1] 0
+
+``` r
+sum(gseaTestReactome22h$padj < 0.1)
+```
+
+    ## [1] 2
