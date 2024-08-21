@@ -1,5 +1,5 @@
 ---
-title: "SIG03 oBC DirectAmp Mouse 10x Seurat Processing"
+title: "SIG03 oBC DirectAmp Human + Mouse 10x Seurat Processing"
 author: "Eric Y. Wang"
 date: "`r Sys.Date()`"
 output:
@@ -31,7 +31,7 @@ theme_set(theme_Publication())
 ## [**Import data**]{.underline}
 
 ```{r}
-dataRaw <- Read10X_h5("C:/Users/Eric/My Drive/Lab/datasets/EYW/SIG03_10x_240706/cellranger_outs/SIG03_GEX_HTO_oBC_DirectAmp_mouse/filtered_feature_bc_matrix.h5")
+dataRaw <- Read10X_h5("C:/Users/Eric/My Drive/Lab/datasets/EYW/SIG03_10x_240706/cellranger_outs/SIG03_GEX_HTO_oBC_DirectAmp_human/filtered_feature_bc_matrix.h5")
 names(dataRaw)
 ```
 
@@ -58,7 +58,7 @@ dataGEX <- dataGEX[keepGenes,]
 
 ```{r}
 # load GEX counts and add celltag counts into seurat object
-data <- CreateSeuratObject(counts = dataGEX, project = "SIG03_mouse")
+data <- CreateSeuratObject(counts = dataGEX, project = "SIG03_human_mouse")
 data[["HTO"]] <- CreateAssayObject(counts = dataHTO)
 data[["BC"]] <- CreateAssayObject(counts = dataBC)
 
@@ -122,7 +122,7 @@ data$scDblFinder.class <- sceData$scDblFinder.class
 table(HTO=data$HTO_classification.global, call=sceData$scDblFinder.class)
 ```
 
-### Subset data to singlets based on HTO
+### Subset data to singlets or negative based on HTO
 
 ```{r}
 data@meta.data %>%
@@ -130,7 +130,7 @@ data@meta.data %>%
   summarize(num_cells = n())
 
 Idents(data) <- "HTO_classification.global"
-dataSub <- subset(data, idents = "Singlet")
+dataSub <- subset(data, idents = "Doublet", invert = T)
 ```
 
 ```{r}
@@ -147,8 +147,8 @@ dataSub@meta.data %>%
 ```{r}
 DefaultAssay(dataSub) <- "RNA"
 # calculate percent mitochondrial reads and ratio 
-dataSub[["percent.mt"]] <- PercentageFeatureSet(dataSub, pattern = "^mt-")
-dataSub[["percent.ribo"]] <- PercentageFeatureSet(dataSub, pattern = "^Rpl|^Rps")
+dataSub[["percent.mt"]] <- PercentageFeatureSet(dataSub, pattern = "^GRCm39-mt-|^GRCh38-MT-")
+dataSub[["percent.ribo"]] <- PercentageFeatureSet(dataSub, pattern = "^GRCm39-Rpl|^GRCm39-Rps|^GRCh38-RPL|^GRCh38-RPS")
 dataSub[["mitoRatio"]] <- dataSub@meta.data$percent.mt / 100
 dataSub[["log10GenesPerUMI"]] <- log10(dataSub$nFeature_RNA)/log10(dataSub$nCount_RNA)
 dataSub[["log10nFeature_RNA"]] <- log10(dataSub$nFeature_RNA)
@@ -160,7 +160,7 @@ metadata <- dataSub@meta.data
 
 ```{r, fig.width=15, fig.height=7}
 # enter QC values
-qcValues <- c(nFeature_RNA = 400, nCount_RNA = 500, percent.mt = 5)
+qcValues <- c(nFeature_RNA = 350, nCount_RNA = 400, percent.mt = 5)
 
 # quantify how many cells there are
 paste0("There are ", ncol(dataSub), " cells")
@@ -249,8 +249,6 @@ paste0("There were ", ncol(dataSub) - ncol(dataSubQC), " cells removed in QC")
 
 ## [**Score for sources of variation**]{.underline}
 
-### Cell cycle variation
-
 ```{r, echo=FALSE}
 DefaultAssay(dataSubQC) <- "RNA"
 dataSubQC <- NormalizeData(dataSubQC)
@@ -262,20 +260,7 @@ dataSubQC <- FindVariableFeatures(dataSubQC,
 # Scale the counts
 dataSubQC <- ScaleData(dataSubQC)
 
-cellCycleGenes <- read_csv("C:/Users/Eric/My Drive/Lab/datasets/gene_sets/cell_cycle_genes_seurat_mouse.csv")
-# cellCycleGenes <- read_csv("/Users/wange7/Library/CloudStorage/GoogleDrive-ericwang314@gmail.com/My Drive/Lab/datasets/gene_sets/cell_cycle_genes_seurat_mouse.csv")
-
-dataSubQC <- CellCycleScoring(dataSubQC, s.features = cellCycleGenes$s_genes,
-                            g2m.features = cellCycleGenes$g2m_genes)
-```
-
-```{r, fig.width=8, fig.height=4}
-# Plot the PCA colored by cell cycle phase
 dataSubQC <- RunPCA(dataSubQC, verbose = FALSE)
-DimPlot(dataSubQC,
-        reduction = "pca",
-        group.by= "Phase",
-        split.by = "Phase")
 ```
 
 ### Mitochondrial variation
@@ -300,16 +285,16 @@ DimPlot(dataSubQC,
 ### SCTransform
 
 ```{r}
-options(future.globals.maxSize= 2000*1024^2)
+options(future.globals.maxSize= 10000*1024^2)
 # perform SCT normalization and find variable features
 dataSubQC <- SCTransform(dataSubQC, vst.flavor = "v2",
-                       vars.to.regress = c("Phase","mitoRatio"),
+                       vars.to.regress = c("mitoRatio"),
                        variable.features.n = 3100)
 
 # remove TCR genes from variable features
 featureVar <- VariableFeatures(dataSubQC, assay = "SCT")
-TCRgenes <- grep("^Tra[vj]|^Trb[vdj]",featureVar)
-BCRgenes <- grep("^Igk[vc]|^Igl[vc]|^Ighv",featureVar)
+TCRgenes <- grep("^GRCm39-Tra[vj]|^GRCm39-Trb[vdj]",featureVar)
+BCRgenes <- grep("^GRCm39-Igk[vc]|^GRCm39-Igl[vc]|^GRCm39-Ighv",featureVar)
 featureVar[TCRgenes]
 featureVar[BCRgenes]
 
@@ -327,59 +312,50 @@ DefaultAssay(dataSubQC) <- "SCT"
 dataSubQC <- NormalizeData(dataSubQC, assay = "BC", normalization.method = "CLR")
 ```
 
-## [Sample Subsetting]{.underline}
-
-```{r}
-dataSubQC$sample_group <- gsub("^(//w+)-.*$", "//1", dataSubQC$hash.ID)
-
-dataCD4 <- subset(dataSubQC, subset = sample_group != "splenocytes")
-dataSplenocytes <- subset(dataSubQC, subset = sample_group == "splenocytes")
-```
-
-## [Dim Reduction CD4]{.underline}
+## [Dim Reduction]{.underline}
 
 ```{r}
 # Find variable features and exclude TCR genes
-dataCD4 <- FindVariableFeatures(dataCD4,
+dataSubQC <- FindVariableFeatures(dataSubQC,
                                 selection.method = "vst",
                                 nfeatures = 3100)
-featureVar <- VariableFeatures(dataCD4)
-VariableFeatures(dataCD4, assay = "SCT") <- featureVar[-c(TCRgenes)]
+featureVar <- VariableFeatures(dataSubQC)
+VariableFeatures(dataSubQC, assay = "SCT") <- featureVar[-c(TCRgenes)]
 
 
 # run PCA using TCR/BCR excluded Variable Features
-dataCD4 <- RunPCA(dataCD4, npcs = 60, verbose = FALSE)
-ElbowPlot(dataCD4, ndims = 60) +
-  ggtitle("dataCD4 Elbow") +
+dataSubQC <- RunPCA(dataSubQC, npcs = 60, verbose = FALSE)
+ElbowPlot(dataSubQC, ndims = 60) +
+  ggtitle("dataSubQC Elbow") +
   scale_x_continuous(breaks = seq(0,60,3))
 ```
 
 ```{r}
 dimValues <- 50
 # run umap based on dimensionality from elbow plot
-dataCD4 <- RunUMAP(dataCD4, dims = 1:dimValues, verbose = F) %>%
+dataSubQC <- RunUMAP(dataSubQC, dims = 1:dimValues, verbose = F) %>%
   FindNeighbors(dims = 1:dimValues, verbose = FALSE) %>%
   FindClusters(resolution = seq(0,1.2,0.1),
                algorithm = 1, verbose = F)
 ```
 
 ```{r, echo=FALSE, fig.height=10, fig.width=6}
-clustree(dataCD4, prefix = "SCT_snn_res.") +
-  ggtitle("dataCD4 Clustree")
+clustree(dataSubQC, prefix = "SCT_snn_res.") +
+  ggtitle("dataSubQC Clustree")
 ```
 
 ```{r, fig.width=12, fig.height=5}
-dataCD4$seurat_clusters <- dataCD4$SCT_snn_res.0.7
-Idents(dataCD4) <- dataCD4$seurat_clusters
-p1 <- DimPlot(dataCD4) + theme(aspect.ratio = 1)
-p2 <- DimPlot(dataCD4, group.by = "hash.ID") + theme(aspect.ratio = 1)
+dataSubQC$seurat_clusters <- dataSubQC$SCT_snn_res.0.5
+Idents(dataSubQC) <- dataSubQC$seurat_clusters
+p1 <- DimPlot(dataSubQC) + theme(aspect.ratio = 1)
+p2 <- DimPlot(dataSubQC, group.by = "hash.ID") + theme(aspect.ratio = 1)
 p1+p2
 ```
 
 ```{r, fig.height=25, fig.width=10}
 # perform DEG analysis on SCT data
-dataCD4 <- PrepSCTFindMarkers(dataCD4)
-clusMarkers <- FindAllMarkers(dataCD4, only.pos = T, assay = "SCT")
+dataSubQC <- PrepSCTFindMarkers(dataSubQC)
+clusMarkers <- FindAllMarkers(dataSubQC, only.pos = T, assay = "SCT")
 clusMarkers <- as_tibble(clusMarkers)
 
 sigMarkers <- clusMarkers %>%
@@ -394,91 +370,63 @@ top10 <- sigMarkers %>%
 top10
 ```
 
-Cluster 6 and 14 seem to be contaminating B cells. I will remove them in the
-final dataset.
+Cluster 4,5,7 are Jurkat Cells. Cluster 8 is Tregs. Cluster 13 and 14 contain
+myeloid/NK cells? Cluster 9 seems to contain low quality cells (Malat1 high,
+etc.)
 
 ```{r}
-dataCD4Sub <- subset(dataCD4, subset = seurat_clusters != "6" & seurat_clusters != "14")
+dataSubQCSub <- subset(dataSubQC, subset = seurat_clusters != "9")
 
-DimPlot(dataCD4Sub) + theme(aspect.ratio = 1)
-```
-
-## [Dim Reduction Splenocytes]{.underline}
-
-```{r}
-# Find variable features and exclude TCR genes
-dataSplenocytes <- FindVariableFeatures(dataSplenocytes,
-                                selection.method = "vst",
-                                nfeatures = 3100)
-featureVar <- VariableFeatures(dataSplenocytes)
-VariableFeatures(dataSplenocytes, assay = "SCT") <- featureVar[-c(TCRgenes,BCRgenes)]
-
-dataSplenocytes <- RunPCA(dataSplenocytes, npcs = 60, verbose = FALSE)
-ElbowPlot(dataSplenocytes, ndims = 60) +
-  ggtitle("dataSplenocytes Elbow") +
-  scale_x_continuous(breaks = seq(0,60,3))
+DimPlot(dataSubQCSub) + theme(aspect.ratio = 1)
 ```
 
 ```{r}
-dimValues <- 50
-# run umap based on dimensionality from elbow plot
-dataSplenocytes <- RunUMAP(dataSplenocytes, dims = 1:dimValues, verbose = F) %>%
-  FindNeighbors(dims = 1:dimValues, verbose = FALSE) %>%
-  FindClusters(resolution = seq(0,2,0.1),
-               algorithm = 1, verbose = F)
-```
-
-```{r, echo=FALSE, fig.height=10, fig.width=6}
-clustree(dataSplenocytes, prefix = "SCT_snn_res.") +
-  ggtitle("dataSplenocytes Clustree")
-```
-
-```{r}
-dataSplenocytes$seurat_clusters <- dataSplenocytes$SCT_snn_res.1.2
-Idents(dataSplenocytes) <- dataSplenocytes$seurat_clusters
-DimPlot(dataSplenocytes) + theme(aspect.ratio = 1)
-```
-
-```{r}
-# perform DEG analysis on SCT data
-dataSplenocytes <- PrepSCTFindMarkers(dataSplenocytes)
-clusMarkers <- FindAllMarkers(dataSplenocytes, only.pos = T, assay = "SCT")
-clusMarkers <- as_tibble(clusMarkers)
-
-sigMarkers <- clusMarkers %>%
-  dplyr::filter(avg_log2FC > 1 & p_val_adj < 0.1) %>%
-  arrange(p_val_adj)
-
-top10 <- sigMarkers %>%
-    group_by(cluster) %>%
-    slice_head(n = 10) %>%
-    ungroup()
-
-top10
-```
-
-```{r}
-metadata <- dataSplenocytes@meta.data %>%
+metadata <- dataSubQCSub@meta.data %>%
   as_tibble() %>%
-  mutate(clusters_anno = case_when(seurat_clusters %in% c("0","1","2","3","4") ~ "Bcells",
-                                   seurat_clusters %in% c("5","9") ~ "Tcell",
-                                   seurat_clusters %in% c("6","8") ~ "6_8",
-                                   seurat_clusters == "7" ~ "NKcell",
-                                   seurat_clusters == '10' ~ "10",
-                                   seurat_clusters == "11" ~ "Macrophage",
-                                   seurat_clusters == "12" ~ "Neutrophil"))
+  mutate(clusters_anno = case_when(seurat_clusters %in% c("4","5","7") ~ "jurkat",
+                                   seurat_clusters %in% c("8") ~ "Treg",
+                                   seurat_clusters %in% c("0","13","14","15") ~ "splenocyte",
+                                   seurat_clusters %in% c("1","2","3","6","9","10","11","12") ~ "CD4"))
 
-dataSplenocytes$clusters_anno = metadata$clusters_anno
+dataSubQCSub$clusters_anno = metadata$clusters_anno
 ```
 
 ```{r}
-Idents(dataSplenocytes) <- "clusters_anno"
-DimPlot(dataSplenocytes) + theme(aspect.ratio = 1)
+DimPlot(dataSubQCSub, group.by = "clusters_anno") + theme(aspect.ratio = 1)
+```
+
+Remove cells with incorrect hashtag in wrong cluster
+
+```{r}
+metadata <- dataSubQCSub@meta.data %>% 
+  as_tibble(rownames = "cell_bc")
+
+correctCD4 <- metadata %>%
+  filter(clusters_anno == "CD4" & hash.ID %in% c("CD4-6h-2e11","CD4-6h-6e10","CD4-6h-2e10","CD4-6h-6e9","CD4-6h-0",
+                                     "CD4-22h-2e11","CD4-22h-6e10","CD4-22h-2e10","CD4-22h-6e9","CD4-22h-0"))
+
+correctJurkat <- metadata %>%
+  filter(clusters_anno == "jurkat" & hash.ID == "Negative")
+
+correctSpleen <- metadata %>%
+  filter(clusters_anno == "splenocyte" & hash.ID == "splenocytes-4h")
+
+correctTreg <- metadata %>%
+  filter(clusters_anno == "Treg" & hash.ID == "Treg-4h")
+
+correctCells <- c(correctCD4$cell_bc, correctJurkat$cell_bc, correctSpleen$cell_bc, correctTreg$cell_bc)
+```
+
+```{r}
+dataSubQCSubClean <- subset(dataSubQCSub, cells = correctCells)
+```
+
+```{r}
+DimPlot(dataSubQCSubClean, group.by = "clusters_anno") + theme(aspect.ratio = 1)
 ```
 
 ## [**Save RDS**]{.underline}
 
 ```{r}
-saveRDS(dataCD4Sub, "C:/Users/Eric/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_CD4.rds")
-saveRDS(dataSplenocytes, "C:/Users/Eric/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_splenocytes.rds")
+saveRDS(dataSubQCSubClean, "C:/Users/Eric/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_CD4_jurkat_splenocytes.rds")
 ```
