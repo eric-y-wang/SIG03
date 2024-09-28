@@ -32,8 +32,9 @@ theme_set(theme_Publication())
 # dataCD4 <- readRDS("/Users/wange7/Library/CloudStorage/GoogleDrive-ericwang314@gmail.com/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_CD4.rds")
 # dataSplen <- readRDS("/Users/wange7/Library/CloudStorage/GoogleDrive-ericwang314@gmail.com/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_splenocytes.rds")
 
-dataCD4 <- readRDS("C:/Users/Eric/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_CD4.rds")
-dataSplen <- readRDS("C:/Users/Eric/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_splenocytes.rds")
+dataCD4 <- readRDS("C:/Users/Eric/Documents/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_CD4.rds")
+dataSplen <- readRDS("C:/Users/Eric/Documents/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_splenocytes.rds")
+dataJurkat <- readRDS("C:/Users/Eric/Documents/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_CD4_jurkat_splenocytes.rds")
 ```
 
 ### [Visualize Barcode Distributions]{.underline}
@@ -258,6 +259,53 @@ BCdata %>%
 VlnPlot(dataSplen, "p139-BC6", pt.size = 0, assay = "BC")
 VlnPlot(subset(dataSplen, !(subset = clusters_anno %in% c("6_8","10"))), "p139-BC6", pt.size = 0, assay = "BC")
 ```
+
+#### Jurkat data
+
+```{r, fig.height=5, fig.width=5}
+metadata <- dataJurkat@meta.data %>%
+  as_tibble(rownames = "cell_BC")
+
+BCdata <- dataJurkat@assays$BC@counts %>%
+  as_tibble(rownames = "BC") %>%
+  pivot_longer(-BC, names_to = "cell_BC", values_to = "counts") %>%
+  mutate(log10counts = log10(counts + 1)) %>%
+  left_join(metadata)
+
+BCdata %>%
+  filter(BC %in% c("p139-BC2")) %>%
+  ggplot(aes(x = log10counts, fill = clusters_anno)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 60) +
+    geom_vline(xintercept = log10(100+1)) +
+    facet_wrap(~clusters_anno) +
+    NoLegend() +
+    xlim(0,4.2) +
+    theme(aspect.ratio = 0.8) +
+    ggtitle("p139-BC2: 2e11 LP/mL")
+
+BCdata %>%
+  filter(BC %in% c("p139-BC1")) %>%
+  ggplot(aes(x = log10counts, fill = clusters_anno)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 60) +
+    geom_vline(xintercept = log10(100+1)) +
+    facet_wrap(~clusters_anno) +
+    NoLegend() +
+    xlim(0,4.2) +
+    theme(aspect.ratio = 0.8) +
+    ggtitle("p139-BC1: 6e10 LP/mL")
+
+BCdata %>%
+  filter(BC %in% c("p139-BC3")) %>%
+  ggplot(aes(x = log10counts, fill = clusters_anno)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 60) +
+    geom_vline(xintercept = log10(100+1)) +
+    facet_wrap(~clusters_anno) +
+    NoLegend() +
+    xlim(0,4.2) +
+    theme(aspect.ratio = 0.8) +
+    ggtitle("p139-BC3: 2e10 LP/mL")
+```
+
 
 ### [Barcode Classification]{.underline}
 

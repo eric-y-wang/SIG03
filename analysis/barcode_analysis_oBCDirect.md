@@ -1,7 +1,7 @@
 SIG03 oBC Direct Amp Barcode Analysis
 ================
 Eric Y. Wang
-2024-08-05
+2024-09-28
 
 - [<u>Import Data</u>](#import-data)
 - [<u>Visualize Barcode
@@ -27,8 +27,9 @@ theme_set(theme_Publication())
 # dataCD4 <- readRDS("/Users/wange7/Library/CloudStorage/GoogleDrive-ericwang314@gmail.com/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_CD4.rds")
 # dataSplen <- readRDS("/Users/wange7/Library/CloudStorage/GoogleDrive-ericwang314@gmail.com/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_splenocytes.rds")
 
-dataCD4 <- readRDS("C:/Users/Eric/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_CD4.rds")
-dataSplen <- readRDS("C:/Users/Eric/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_splenocytes.rds")
+dataCD4 <- readRDS("C:/Users/Eric/Documents/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_CD4.rds")
+dataSplen <- readRDS("C:/Users/Eric/Documents/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_splenocytes.rds")
+dataJurkat <- readRDS("C:/Users/Eric/Documents/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_CD4_jurkat_splenocytes.rds")
 ```
 
 ### <u>Visualize Barcode Distributions</u>
@@ -136,7 +137,7 @@ p1 <- expressionData %>%
   filter(hash.ID %in% c("CD4-6h-2e11")) %>%
   ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
     geom_point() +
-    stat_density2d(aes(fill = ..level..), geom = "polygon") +
+    stat_density2d(aes(fill = after_stat(level)), geom = "polygon") +
     scale_fill_viridis_c() +
     theme(aspect.ratio = 1) +
     ggtitle("2e11 LP 6h/mL\nSCT normalized Expression")
@@ -145,7 +146,7 @@ p2 <- expressionData %>%
   filter(hash.ID %in% c("CD4-6h-6e10")) %>%
   ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
     geom_point() +
-    stat_density2d(aes(fill = ..level..), geom = "polygon") +
+    stat_density2d(aes(fill = after_stat(level)), geom = "polygon") +
     scale_fill_viridis_c() +
     theme(aspect.ratio = 1) +
     ggtitle("6e10 LP 6h/mL\nSCT normalized Expression")
@@ -154,7 +155,7 @@ p3 <- expressionData %>%
   filter(hash.ID %in% c("CD4-6h-2e10")) %>%
   ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
     geom_point() +
-    stat_density2d(aes(fill = ..level..), geom = "polygon") +
+    stat_density2d(aes(fill = after_stat(level)), geom = "polygon") +
     scale_fill_viridis_c() +
     theme(aspect.ratio = 1) +
     ggtitle("2e10 LP/mL 6h\nSCT normalized Expression")
@@ -163,7 +164,7 @@ p4 <- expressionData %>%
   filter(hash.ID %in% c("CD4-6h-6e9")) %>%
   ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
     geom_point() +
-    stat_density2d(aes(fill = ..level..), geom = "polygon") +
+    stat_density2d(aes(fill = after_stat(level)), geom = "polygon") +
     scale_fill_viridis_c() +
     theme(aspect.ratio = 1) +
     ggtitle("6e9 LP 6h/mL\nSCT normalized Expression")
@@ -171,13 +172,31 @@ p4 <- expressionData %>%
 plot_grid(p1,p2,p3,p4, ncol = 2)
 ```
 
-    ## Warning: The dot-dot notation (`..level..`) was deprecated in ggplot2 3.4.0.
-    ## ℹ Please use `after_stat(level)` instead.
-    ## This warning is displayed once every 8 hours.
-    ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
-    ## generated.
-
 ![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+
+``` r
+temp <- expressionData %>%
+  filter(hash.ID == "CD4-6h-2e11")
+
+pos <- temp %>%
+  filter(BC4 > 70 & BC5 > 70)
+
+nrow(pos)/nrow(temp)
+```
+
+    ## [1] 0.8838656
+
+``` r
+temp <- expressionData %>%
+  filter(hash.ID == "CD4-6h-2e10")
+
+pos <- temp %>%
+  filter(BC4 > 70 & BC5 > 70)
+
+nrow(pos)/nrow(temp)
+```
+
+    ## [1] 0.7708609
 
 ``` r
 expressionData <- tibble(cell_bc = colnames(dataCD4),
@@ -224,7 +243,13 @@ p4 <- expressionData %>%
 plot_grid(p1,p2,p3,p4, ncol = 2)
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+    ## Warning: The dot-dot notation (`..level..`) was deprecated in ggplot2 3.4.0.
+    ## ℹ Please use `after_stat(level)` instead.
+    ## This warning is displayed once every 8 hours.
+    ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
+    ## generated.
+
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
 
 #### Splenocyte Barcodes
 
@@ -252,7 +277,7 @@ BCdata %>%
     ggtitle("p139-BC6")
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
 
 ``` r
 BCdata %>%
@@ -265,19 +290,92 @@ BCdata %>%
     ggtitle("p139-BC6")
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
 
 ``` r
 VlnPlot(dataSplen, "p139-BC6", pt.size = 0, assay = "BC")
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
 ``` r
 VlnPlot(subset(dataSplen, !(subset = clusters_anno %in% c("6_8","10"))), "p139-BC6", pt.size = 0, assay = "BC")
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-10-2.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-12-2.png)<!-- -->
+
+#### Jurkat data
+
+``` r
+metadata <- dataJurkat@meta.data %>%
+  as_tibble(rownames = "cell_BC")
+
+BCdata <- dataJurkat@assays$BC@counts %>%
+  as_tibble(rownames = "BC") %>%
+  pivot_longer(-BC, names_to = "cell_BC", values_to = "counts") %>%
+  mutate(log10counts = log10(counts + 1)) %>%
+  left_join(metadata)
+```
+
+    ## Joining with `by = join_by(cell_BC)`
+
+``` r
+BCdata %>%
+  filter(BC %in% c("p139-BC2")) %>%
+  ggplot(aes(x = log10counts, fill = clusters_anno)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 60) +
+    geom_vline(xintercept = log10(100+1)) +
+    facet_wrap(~clusters_anno) +
+    NoLegend() +
+    xlim(0,4.2) +
+    theme(aspect.ratio = 0.8) +
+    ggtitle("p139-BC2: 2e11 LP/mL")
+```
+
+    ## Warning: Removed 6 rows containing non-finite outside the scale range
+    ## (`stat_bin()`).
+
+    ## Warning: Removed 8 rows containing missing values or values outside the scale range
+    ## (`geom_bar()`).
+
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+
+``` r
+BCdata %>%
+  filter(BC %in% c("p139-BC1")) %>%
+  ggplot(aes(x = log10counts, fill = clusters_anno)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 60) +
+    geom_vline(xintercept = log10(100+1)) +
+    facet_wrap(~clusters_anno) +
+    NoLegend() +
+    xlim(0,4.2) +
+    theme(aspect.ratio = 0.8) +
+    ggtitle("p139-BC1: 6e10 LP/mL")
+```
+
+    ## Warning: Removed 2 rows containing non-finite outside the scale range (`stat_bin()`).
+    ## Removed 8 rows containing missing values or values outside the scale range
+    ## (`geom_bar()`).
+
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-13-2.png)<!-- -->
+
+``` r
+BCdata %>%
+  filter(BC %in% c("p139-BC3")) %>%
+  ggplot(aes(x = log10counts, fill = clusters_anno)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 60) +
+    geom_vline(xintercept = log10(100+1)) +
+    facet_wrap(~clusters_anno) +
+    NoLegend() +
+    xlim(0,4.2) +
+    theme(aspect.ratio = 0.8) +
+    ggtitle("p139-BC3: 2e10 LP/mL")
+```
+
+    ## Warning: Removed 8 rows containing missing values or values outside the scale range
+    ## (`geom_bar()`).
+
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-13-3.png)<!-- -->
 
 ### <u>Barcode Classification</u>
 
@@ -696,13 +794,13 @@ plot_grid(pr1,pr2,pr3,pr4)
     ## Warning: Removed 3303 rows containing missing values or values outside the scale range
     ## (`geom_line()`).
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
 
 ``` r
 plot_grid(roc1,roc2,roc3,roc4)
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-20-2.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-23-2.png)<!-- -->
 
 ``` r
 dataCD4@meta.data %>%
@@ -741,4 +839,4 @@ dataCD4@meta.data  %>%
     facet_wrap(~hash.ID, ncol = 5)
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
