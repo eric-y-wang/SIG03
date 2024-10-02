@@ -1,7 +1,7 @@
 SIG03 oBC Direct Amp Barcode Analysis
 ================
 Eric Y. Wang
-2024-09-28
+2024-10-02
 
 - [<u>Import Data</u>](#import-data)
 - [<u>Visualize Barcode
@@ -135,121 +135,129 @@ expressionData <- tibble(cell_bc = colnames(dataCD4),
 
 p1 <- expressionData %>%
   filter(hash.ID %in% c("CD4-6h-2e11")) %>%
-  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
-    geom_point() +
-    stat_density2d(aes(fill = after_stat(level)), geom = "polygon") +
-    scale_fill_viridis_c() +
+  ggplot(aes(x = log(BC4 + 1), y = log(BC5 + 1))) +
+    geom_pointdensity() +
+    scale_color_viridis_c() +
     theme(aspect.ratio = 1) +
-    ggtitle("2e11 LP 6h/mL\nSCT normalized Expression")
+    xlim(0,10)+
+    ylim(0,10) +
+    ggtitle("2e11 LP 6h/mL")
 
 p2 <- expressionData %>%
   filter(hash.ID %in% c("CD4-6h-6e10")) %>%
-  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
-    geom_point() +
-    stat_density2d(aes(fill = after_stat(level)), geom = "polygon") +
-    scale_fill_viridis_c() +
+  ggplot(aes(x = log(BC4 + 1), y = log(BC5 + 1))) +
+    geom_pointdensity() +
+    scale_color_viridis_c() +
     theme(aspect.ratio = 1) +
-    ggtitle("6e10 LP 6h/mL\nSCT normalized Expression")
+    xlim(0,10)+
+    ylim(0,10) +
+    ggtitle("6e10 LP 6h/mL")
 
 p3 <- expressionData %>%
   filter(hash.ID %in% c("CD4-6h-2e10")) %>%
-  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
-    geom_point() +
-    stat_density2d(aes(fill = after_stat(level)), geom = "polygon") +
-    scale_fill_viridis_c() +
+  ggplot(aes(x = log(BC4 + 1), y = log(BC5 + 1))) +
+    geom_pointdensity() +
+    scale_color_viridis_c() +
     theme(aspect.ratio = 1) +
-    ggtitle("2e10 LP/mL 6h\nSCT normalized Expression")
+    xlim(0,10)+
+    ylim(0,10) +
+    ggtitle("2e10 LP/mL 6h")
 
 p4 <- expressionData %>%
   filter(hash.ID %in% c("CD4-6h-6e9")) %>%
-  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
-    geom_point() +
-    stat_density2d(aes(fill = after_stat(level)), geom = "polygon") +
-    scale_fill_viridis_c() +
+  ggplot(aes(x = log(BC4 + 1), y = log(BC5 + 1))) +
+    geom_pointdensity() +
+    scale_color_viridis_c() +
     theme(aspect.ratio = 1) +
-    ggtitle("6e9 LP 6h/mL\nSCT normalized Expression")
+    xlim(0,10)+
+    ylim(0,10) +
+    ggtitle("6e9 LP 6h/mL")
 
 plot_grid(p1,p2,p3,p4, ncol = 2)
 ```
+
+    ## Warning: Removed 6 rows containing non-finite outside the scale range
+    ## (`stat_pointdensity()`).
 
 ![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
 ``` r
-temp <- expressionData %>%
-  filter(hash.ID == "CD4-6h-2e11")
-
-pos <- temp %>%
-  filter(BC4 > 70 & BC5 > 70)
-
-nrow(pos)/nrow(temp)
-```
-
-    ## [1] 0.8838656
-
-``` r
-temp <- expressionData %>%
-  filter(hash.ID == "CD4-6h-2e10")
-
-pos <- temp %>%
-  filter(BC4 > 70 & BC5 > 70)
-
-nrow(pos)/nrow(temp)
-```
-
-    ## [1] 0.7708609
-
-``` r
 expressionData <- tibble(cell_bc = colnames(dataCD4),
                          hash.ID = dataCD4$hash.ID,
-                         BC4 = dataCD4@assays$BC@data["p139-BC5",],
-                         BC5 = dataCD4@assays$BC@data["p139-BC4",])
+                         BC4 = dataCD4@assays$BC@counts["p139-BC5",],
+                         BC5 = dataCD4@assays$BC@counts["p139-BC4",])
 
 p1 <- expressionData %>%
   filter(hash.ID %in% c("CD4-22h-2e11")) %>%
-  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
-    geom_point() +
-    stat_density2d(aes(fill = ..level..), geom = "polygon") +
-    scale_fill_viridis_c() +
+  ggplot(aes(x = log(BC4 + 1), y = log(BC5 + 1))) +
+    geom_pointdensity() +
+    scale_color_viridis_c() +
     theme(aspect.ratio = 1) +
-    ggtitle("2e11 LP 22h/mL\nSCT normalized Expression")
+    xlim(0,10)+
+    ylim(0,10) +
+    ggtitle("2e11 LP 22h/mL")
 
 p2 <- expressionData %>%
   filter(hash.ID %in% c("CD4-22h-6e10")) %>%
-  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
-    geom_point() +
-    stat_density2d(aes(fill = ..level..), geom = "polygon") +
-    scale_fill_viridis_c() +
+  ggplot(aes(x = log(BC4 + 1), y = log(BC5 + 1))) +
+    geom_pointdensity() +
+    scale_color_viridis_c() +
     theme(aspect.ratio = 1) +
-    ggtitle("6e10 LP 22h/mL\nSCT normalized Expression")
+    xlim(0,10)+
+    ylim(0,10) +
+    ggtitle("6e10 LP 22h/mL")
 
 p3 <- expressionData %>%
   filter(hash.ID %in% c("CD4-22h-2e10")) %>%
-  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
-    geom_point() +
-    stat_density2d(aes(fill = ..level..), geom = "polygon") +
-    scale_fill_viridis_c() +
+  ggplot(aes(x = log(BC4 + 1), y = log(BC5 + 1))) +
+    geom_pointdensity() +
+    scale_color_viridis_c() +
     theme(aspect.ratio = 1) +
-    ggtitle("2e10 LP/mL 22h\nSCT normalized Expression")
+    xlim(0,10)+
+    ylim(0,10) +
+    ggtitle("2e10 LP/mL 22h")
 
 p4 <- expressionData %>%
   filter(hash.ID %in% c("CD4-22h-6e9")) %>%
-  ggplot(aes(x = log10(BC4 + 1), y = log10(BC5 + 1))) +
-    geom_point() +
-    stat_density2d(aes(fill = ..level..), geom = "polygon") +
-    scale_fill_viridis_c() +
+  ggplot(aes(x = log(BC4 + 1), y = log(BC5 + 1))) +
+    geom_pointdensity() +
+    scale_color_viridis_c() +
     theme(aspect.ratio = 1) +
-    ggtitle("6e9 LP 22h/mL\nSCT normalized Expression")
+    xlim(0,10)+
+    ylim(0,10) +
+    ggtitle("6e9 LP 22h/mL")
 
 plot_grid(p1,p2,p3,p4, ncol = 2)
 ```
 
-    ## Warning: The dot-dot notation (`..level..`) was deprecated in ggplot2 3.4.0.
-    ## ℹ Please use `after_stat(level)` instead.
-    ## This warning is displayed once every 8 hours.
-    ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
-    ## generated.
+    ## Warning: Removed 1 row containing non-finite outside the scale range
+    ## (`stat_pointdensity()`).
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+
+Get frequency of assignments at a cutoff of ln(BC)
+
+``` r
+expressionData %>%
+  mutate(pos = ifelse(log(BC5+1) > 4 & log(BC4+1) > 4,T,F)) %>%
+  group_by(hash.ID) %>%
+  summarise(freq = sum(pos)/n())
+```
+
+    ## # A tibble: 11 × 2
+    ##    hash.ID        freq
+    ##    <fct>         <dbl>
+    ##  1 CD4-6h-2e11  0.898 
+    ##  2 CD4-6h-6e10  0.822 
+    ##  3 CD4-6h-2e10  0.793 
+    ##  4 CD4-6h-6e9   0.793 
+    ##  5 CD4-6h-0     0.0320
+    ##  6 CD4-22h-2e11 0.717 
+    ##  7 CD4-22h-6e10 0.666 
+    ##  8 CD4-22h-2e10 0.441 
+    ##  9 CD4-22h-6e9  0.333 
+    ## 10 CD4-22h-0    0.0374
+    ## 11 Treg-4h      0.0399
 
 #### Splenocyte Barcodes
 
@@ -277,7 +285,7 @@ BCdata %>%
     ggtitle("p139-BC6")
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
 
 ``` r
 BCdata %>%
@@ -290,19 +298,19 @@ BCdata %>%
     ggtitle("p139-BC6")
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
 
 ``` r
 VlnPlot(dataSplen, "p139-BC6", pt.size = 0, assay = "BC")
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
 
 ``` r
 VlnPlot(subset(dataSplen, !(subset = clusters_anno %in% c("6_8","10"))), "p139-BC6", pt.size = 0, assay = "BC")
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-12-2.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-11-2.png)<!-- -->
 
 #### Jurkat data
 
@@ -338,7 +346,7 @@ BCdata %>%
     ## Warning: Removed 8 rows containing missing values or values outside the scale range
     ## (`geom_bar()`).
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
 ``` r
 BCdata %>%
@@ -357,7 +365,7 @@ BCdata %>%
     ## Removed 8 rows containing missing values or values outside the scale range
     ## (`geom_bar()`).
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-13-2.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-12-2.png)<!-- -->
 
 ``` r
 BCdata %>%
@@ -375,7 +383,7 @@ BCdata %>%
     ## Warning: Removed 8 rows containing missing values or values outside the scale range
     ## (`geom_bar()`).
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-13-3.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-12-3.png)<!-- -->
 
 ### <u>Barcode Classification</u>
 
@@ -794,13 +802,13 @@ plot_grid(pr1,pr2,pr3,pr4)
     ## Warning: Removed 3303 rows containing missing values or values outside the scale range
     ## (`geom_line()`).
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
 
 ``` r
 plot_grid(roc1,roc2,roc3,roc4)
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-23-2.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-22-2.png)<!-- -->
 
 ``` r
 dataCD4@meta.data %>%
@@ -839,4 +847,4 @@ dataCD4@meta.data  %>%
     facet_wrap(~hash.ID, ncol = 5)
 ```
 
-![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
+![](barcode_analysis_oBCDirect_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
