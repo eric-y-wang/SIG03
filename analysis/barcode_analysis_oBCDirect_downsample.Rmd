@@ -3,12 +3,12 @@ title: "SIG03 oBC Direct Amp Barcode Analysis"
 author: "Eric Y. Wang"
 date: "`r Sys.Date()`"
 output:
-  github_document:
-    toc: true
-    html_preview: false
   html_notebook:
     toc: true
     toc_float: true
+  github_document:
+    toc: true
+    html_preview: false
 ---
 
 ```{r setup}
@@ -18,6 +18,7 @@ library(ggplot2)
 library(cowplot)
 library(yardstick)
 library(DropletUtils)
+library(ggExtra)
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -32,7 +33,7 @@ theme_set(theme_Publication())
 ```{r}
 # dataCD4 <- readRDS("/Users/wange7/Library/CloudStorage/GoogleDrive-ericwang314@gmail.com/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_CD4.rds")
 
-dataCD4 <- readRDS("C:/Users/Eric/My Drive/Lab/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_CD4.rds")
+dataCD4 <- readRDS("C:/Users/Eric/Documents/datasets/EYW/SIG03_10x_240706/seurat_outs/SIG03_mouse_oBC_DirectAmp_CD4.rds")
 ```
 
 ### [Downsample Data]{.underline}
@@ -43,11 +44,11 @@ Targeting 500 reads per cell would correspond to 30 million reads or 5% downsamp
 
 ```{r}
 # downsample and add rownames
-downBC500 <- downsampleReads("C:/Users/Eric/My Drive/Lab/datasets/EYW/SIG03_10x_240706/cellranger_outs/SIG03_GEX_HTO_oBC_DirectAmp_mouse/molecule_info.h5",
+downBC500 <- downsampleReads("C:/Users/Eric/Documents/datasets/EYW/SIG03_10x_240706/cellranger_outs/SIG03_GEX_HTO_oBC_DirectAmp_mouse/molecule_info.h5",
                            0.05, bycol = FALSE, use.library = "Custom")
-downBC1000 <- downsampleReads("C:/Users/Eric/My Drive/Lab/datasets/EYW/SIG03_10x_240706/cellranger_outs/SIG03_GEX_HTO_oBC_DirectAmp_mouse/molecule_info.h5",
+downBC1000 <- downsampleReads("C:/Users/Eric/Documents/datasets/EYW/SIG03_10x_240706/cellranger_outs/SIG03_GEX_HTO_oBC_DirectAmp_mouse/molecule_info.h5",
                            0.05, bycol = FALSE, use.library = "Custom")
-downBC2000 <- downsampleReads("C:/Users/Eric/My Drive/Lab/datasets/EYW/SIG03_10x_240706/cellranger_outs/SIG03_GEX_HTO_oBC_DirectAmp_mouse/molecule_info.h5",
+downBC2000 <- downsampleReads("C:/Users/Eric/Documents/datasets/EYW/SIG03_10x_240706/cellranger_outs/SIG03_GEX_HTO_oBC_DirectAmp_mouse/molecule_info.h5",
                            0.05, bycol = FALSE, use.library = "Custom")
 
 # subset to only include cell bc present in processed data
@@ -119,6 +120,57 @@ p4 <- expressionData %>%
     xlim(0,4.3)+
     ylim(0,4.3) +
     ggtitle("6h 2e10 LP/mL full")
+
+plot_grid(p1,p2,p3,p4, ncol = 2)
+```
+
+```{r}
+totalBC500 <- tibble(cell_bc = colnames(downBC500),
+                     log1p_total_bc_counts = log1p(colSums(downBC500)),
+                     log1p_total_rna_counts = log1p(dataCD4$nCount_RNA))
+totalBC1000 <- tibble(cell_bc = colnames(downBC1000),
+                     log1p_total_bc_counts = log1p(colSums(downBC1000)),
+                     log1p_total_rna_counts = log1p(dataCD4$nCount_RNA))
+totalBC2000 <- tibble(cell_bc = colnames(downBC2000),
+                     log1p_total_bc_counts = log1p(colSums(downBC2000)),
+                     log1p_total_rna_counts = log1p(dataCD4$nCount_RNA))
+totalBCfull <- tibble(cell_bc = colnames(dataCD4),
+                     log1p_total_bc_counts = log1p(dataCD4$nCount_BC),
+                     log1p_total_rna_counts = log1p(dataCD4$nCount_RNA))
+```
+
+```{r, fig.width=10, fig.height=10}
+p1 <- totalBC500 %>%
+  ggplot(aes(x = log1p_total_bc_counts, y=log1p_total_rna_counts)) +
+    geom_pointdensity() +
+    scale_color_viridis_c() +
+    theme(aspect.ratio = 1,
+          legend.position = "none")
+p1 <- ggMarginal(p1, type = "histogram", bins=50)
+
+p2 <- totalBC1000 %>%
+  ggplot(aes(x = log1p_total_bc_counts, y=log1p_total_rna_counts)) +
+    geom_pointdensity() +
+    scale_color_viridis_c() +
+    theme(aspect.ratio = 1,
+          legend.position = "none")
+p2 <- ggMarginal(p2, type = "histogram", bins=50)
+
+p3 <- totalBC2000 %>%
+  ggplot(aes(x = log1p_total_bc_counts, y=log1p_total_rna_counts)) +
+    geom_pointdensity() +
+    scale_color_viridis_c() +
+    theme(aspect.ratio = 1,
+          legend.position = "none")
+p3 <- ggMarginal(p3, type = "histogram", bins=50)
+
+p4 <- totalBCfull %>%
+  ggplot(aes(x = log1p_total_bc_counts, y=log1p_total_rna_counts)) +
+    geom_pointdensity() +
+    scale_color_viridis_c() +
+    theme(aspect.ratio = 1,
+          legend.position = "none")
+p4 <- ggMarginal(p4, type = "histogram", bins=50)
 
 plot_grid(p1,p2,p3,p4, ncol = 2)
 ```

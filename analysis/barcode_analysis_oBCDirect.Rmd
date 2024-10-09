@@ -42,6 +42,18 @@ dataJurkat <- readRDS("C:/Users/Eric/Documents/datasets/EYW/SIG03_10x_240706/seu
 
 #### CD4 Barcodes
 
+```{r}
+countData <- tibble(log1p_total_count = log1p(dataCD4$nCount_RNA),
+                    log1p_oBC_count = log1p(dataCD4$nCount_BC))
+
+countData %>%
+  ggplot(aes(x = log1p_oBC_count, y=log1p_total_count)) +
+    geom_pointdensity() +
+    scale_color_viridis_c() +
+    theme(aspect.ratio = 1)
+```
+
+
 ```{r, fig.height=4, fig.width=12}
 metadata <- dataCD4@meta.data %>%
   as_tibble(rownames = "cell_BC") %>%
